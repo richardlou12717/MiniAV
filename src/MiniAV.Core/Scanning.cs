@@ -43,7 +43,11 @@ public sealed class ScanCoordinator(IScanEngine engine)
                 if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
                     Emit(new(path, ScanStatus.Skipped, Message: "reparse point"));
                 else
-                    Emit(await engine.ScanFileAsync(path, cancellationToken));
+                {
+                    var result = await engine.ScanFileAsync(path, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Emit(result);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
@@ -100,6 +104,7 @@ public sealed class ScanCoordinator(IScanEngine engine)
             }
         }
         else throw new FileNotFoundException("Target does not exist.", target);
+        cancellationToken.ThrowIfCancellationRequested();
         return new(matched, noMatch, skipped, errors, unavailable, engine.SignatureVersion);
     }
 }

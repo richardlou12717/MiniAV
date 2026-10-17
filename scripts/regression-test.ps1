@@ -48,8 +48,8 @@ try {
         $crlfFile = Join-Path $temp 'crlf.txt'
         [System.IO.File]::WriteAllBytes($lfFile, [System.Text.Encoding]::ASCII.GetBytes($fixtureText + "`n"))
         [System.IO.File]::WriteAllBytes($crlfFile, [System.Text.Encoding]::ASCII.GetBytes($fixtureText + "`r`n"))
-        Invoke-Scan -Target $lfFile -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED \\[DEMO-0001: DemoOnly\\]'
-        Invoke-Scan -Target $crlfFile -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED \\[DEMO-0001-WIN: DemoOnly\\]'
+        Invoke-Scan -Target $lfFile -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED \[DEMO-0001: DemoOnly\]'
+        Invoke-Scan -Target $crlfFile -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED \[DEMO-0001-WIN: DemoOnly\]'
 
         # A junction must be reported as SKIPPED, never traversed to outside content.
         $outside = Join-Path $temp 'outside'
@@ -59,7 +59,7 @@ try {
         $junction = Join-Path $inside 'linked-outside'
         New-Item -ItemType Junction -Path $junction -Target $outside -ErrorAction Stop | Out-Null
         Invoke-Scan -Target $inside -Database $db -ExpectedExitCode 0 -ExpectedText 'SUMMARY Matched=0 NoMatch=0 Skipped=1 Errors=0' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
-        Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \\(directory reparse point\\)' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
+        Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \(directory reparse point\)' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
 
         Write-Host 'Regression tests passed'
     }

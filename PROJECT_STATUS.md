@@ -34,14 +34,13 @@ Status: M0 complete. M1 modular scanner compiled and extended regression tests p
 - Windows Release build and extended regression tests (LF/CRLF signatures, junction skipping, invalid DB, missing target) passed locally after commit 2949d24.
 - No independent GitHub Actions success result confirmed here; check PR before merging.
 
-## Pending verification
-- Added CLI Ctrl+C cancellation (exit 130) and deterministic Core cancellation harness; Windows local verification still pending.
+## Latest Windows verification
+- User confirmed Release build, Core cancellation regression tests and full regression tests passed (2026-10-17). CLI Ctrl+C interaction itself remains untested manually.
 
 ## Next work
-1. Run updated regression script on Windows; confirm Core cancellation tests and existing scans pass.
-2. Add reliable access-denied/read-error coverage and consider scan limits.
-3. Confirm GitHub Actions status and decide whether PR #1 can be merged.
-4. Keep project status/changelog current after verification.
+1. Add reliable access-denied/read-error coverage and consider scan limits.
+2. Confirm GitHub Actions status and decide whether PR #1 can be merged.
+3. Keep project status/changelog current after verification.
 
 ## Collaboration
 - ChatGPT acts as architect/developer; user verifies on Windows.

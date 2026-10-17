@@ -15,7 +15,8 @@ try {
                 [string]$Target,
                 [string]$Database,
                 [int]$ExpectedExitCode,
-                [string]$ExpectedText
+                [string]$ExpectedText,
+                [string]$ForbiddenText = ''
             )
             $stdout = Join-Path $temp 'stdout.txt'
             $stderr = Join-Path $temp 'stderr.txt'
@@ -27,7 +28,7 @@ try {
             )
             $process = Start-Process -FilePath 'dotnet' -ArgumentList $arguments -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
             $output = (Get-Content $stdout -Raw -ErrorAction SilentlyContinue) + (Get-Content $stderr -Raw -ErrorAction SilentlyContinue)
-            if ($process.ExitCode -ne $ExpectedExitCode -or $output -notmatch $ExpectedText) {
+            if ($process.ExitCode -ne $ExpectedExitCode -or $output -notmatch $ExpectedText -or ($ForbiddenText -and $output -match $ForbiddenText)) {
                 throw "Scan failed: expected exit $ExpectedExitCode and '$ExpectedText'; actual exit $($process.ExitCode): $output"
             }
         }
@@ -41,6 +42,25 @@ try {
         $bad = Join-Path $temp 'invalid.json'
         [System.IO.File]::WriteAllText($bad, '{"version":"bad","signatures":[{"sha256":"xyz"}]}')
         Invoke-Scan -Target $ordinary -Database $bad -ExpectedExitCode 2 -ExpectedText 'invalid SHA-256'
+        # Match both fixture line-ending variants independent of checkout settings.
+        $fixtureText = "MiniAV demonstration fixture. This file is harmless."
+        $lfFile = Join-Path $temp 'lf.txt'
+        $crlfFile = Join-Path $temp 'crlf.txt'
+        [System.IO.File]::WriteAllBytes($lfFile, [System.Text.Encoding]::ASCII.GetBytes($fixtureText + "`n"))
+        [System.IO.File]::WriteAllBytes($crlfFile, [System.Text.Encoding]::ASCII.GetBytes($fixtureText + "`r`n"))
+        Invoke-Scan -Target $lfFile -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED \\[DEMO-0001: DemoOnly\\]'
+        Invoke-Scan -Target $crlfFile -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED \\[DEMO-0001-WIN: DemoOnly\\]'
+
+        # A junction must be reported as SKIPPED, never traversed to outside content.
+        $outside = Join-Path $temp 'outside'
+        $inside = Join-Path $temp 'scan-root'
+        New-Item -ItemType Directory -Path $outside, $inside | Out-Null
+        [System.IO.File]::Copy($lfFile, (Join-Path $outside 'outside-match.txt'))
+        $junction = Join-Path $inside 'linked-outside'
+        New-Item -ItemType Junction -Path $junction -Target $outside -ErrorAction Stop | Out-Null
+        Invoke-Scan -Target $inside -Database $db -ExpectedExitCode 0 -ExpectedText 'SUMMARY Matched=0 NoMatch=0 Skipped=1 Errors=0' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
+        Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \\(directory reparse point\\)' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
+
         Write-Host 'Regression tests passed'
     }
     finally { Remove-Item $temp -Recurse -Force }

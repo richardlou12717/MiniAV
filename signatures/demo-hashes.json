@@ -1,0 +1,11 @@
+{
+  "version": "demo-0.1",
+  "description": "Only harmless demonstration signatures; not real malware intelligence.",
+  "signatures": [
+    {
+      "id": "DEMO-0001",
+      "sha256": "af17ca0fcf2bca2ef855d00f689da5c571dc798c4ab4bef416d6ac8ef28776a3",
+      "category": "DemoOnly"
+    }
+  ]
+}

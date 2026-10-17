@@ -1,0 +1,1 @@
+Ordinary harmless file for MiniAV scanner smoke test.

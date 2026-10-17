@@ -1,0 +1,1 @@
+MiniAV demonstration fixture. This file is harmless.

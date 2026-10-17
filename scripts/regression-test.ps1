@@ -4,6 +4,8 @@ Push-Location $root
 try {
     dotnet build .\src\MiniAV.Cli\MiniAV.Cli.csproj --configuration Release
     if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+    dotnet run --project .\tests\MiniAV.Core.Regression\MiniAV.Core.Regression.csproj --configuration Release
+    if ($LASTEXITCODE -ne 0) { throw 'Core cancellation regression tests failed' }
 
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('miniav-test-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null

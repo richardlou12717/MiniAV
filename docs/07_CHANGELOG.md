@@ -1,5 +1,11 @@
 # 变更记录
 
+## 2026-10-17 — M1 取消控制（等待 Windows 验证）
+- CLI 捕获 Ctrl+C 并请求取消，返回退出码 130。
+- Core 在报告扫描结果和结束任务前确认取消状态。
+- 新增无需人工按键的 Core 取消回归测试，并接入 PowerShell 回归脚本。
+- 本项尚未通过用户本地编译与测试，PR #1 继续保持 draft。
+
 ## 2026-10-17 — M1 回归测试扩展\n- 已增加 LF/CRLF 双格式签名测试及 Windows Junction 防越界遍历测试。\n- 修复回归脚本误将汇总行 Matched=0 识别为 MATCHED 的正则断言缺陷。\n- 用户在 Windows 验证 Release 构建及扩展回归测试均通过（1.7s，Regression tests passed）。\n- GitHub Actions 状态尚待验证；PR #1 尚未合并。\n\n## 2026-10-17 — M1 模块化（PR #1，尚未合并）
 - 建立 `MiniAV.Core` 扫描契约与协调器。
 - 将 SHA-256 检测、演示签名数据库读取拆分到 `MiniAV.Engines.Hash`。

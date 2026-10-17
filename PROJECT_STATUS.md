@@ -1,12 +1,12 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: M0 complete. M1 modular scanner compiled and extended regression tests passed on the user's Windows machine. PR #1 is draft and not merged.
+Status: M0 and M1 complete. PR #1 merged into main (merge commit d9efa61bcb9de3d7c7889a9fb53157a5da083990).
 
 ## Source of truth
 - Repository: https://github.com/richardlou12717/MiniAV (private)
 - Stable branch: `main`
-- Working branch: `feature/m1-modular-scanner`
+- M1 feature branch: `feature/m1-modular-scanner` (merged; do not use for new development)
 - PR: https://github.com/richardlou12717/MiniAV/pull/1
 - User's Windows working directory: `C:\Projects\MiniAV`
 - Always consult the latest repository contents before changing code.
@@ -24,7 +24,7 @@ Status: M0 complete. M1 modular scanner compiled and extended regression tests p
 - `scripts/regression-test.ps1`: CLI positive/negative/missing path/invalid signature DB checks.
 - `.github/workflows/windows-ci.yml`: Windows build and regression runner.
 - Invalid SHA-256 database exception is now converted to CLI exit code 2 instead of a crash.
-- Work is on draft PR #1; main is untouched.
+- M1 merged to main on 2026-10-17 via PR #1 after local regression tests and two passing Windows CI checks.
 
 ## User-verified results (2026-10-17)
 - Debug build of all three projects successful.
@@ -41,10 +41,11 @@ Status: M0 complete. M1 modular scanner compiled and extended regression tests p
 - User confirmed Release build (1.9 seconds), Core cancellation regression tests, simulated I/O and access-denied tests, MaxFiles tests and full CLI regression tests all passed on Windows.
 - Real ACL-denied tests, interactive Ctrl+C and time/byte limits remain future validation and design work.
 
-## Next work
-1. Review file-byte and scan-time limits, including cancellation behavior.
-2. Check GitHub Actions and PR #1 merge readiness; do not merge without confirmation.
+## Next work (M2 planning)
+1. Create a new feature branch from current main for M2 work.
+2. Design file-byte and scan-time budgets; retain fail-closed incomplete-scan semantics.
 3. Consider real Windows ACL-denied and interactive Ctrl+C verification.
+4. Continue refining CLI scanning and tests before optional GUI development.
 
 ## Collaboration
 - ChatGPT acts as architect/developer; user verifies on Windows.
@@ -52,4 +53,4 @@ Status: M0 complete. M1 modular scanner compiled and extended regression tests p
 - Never commit personal files, malware samples, secrets or quarantine content.
 
 ## Next-session starter
-"Continue MiniAV in richardlou12717/MiniAV. Read PROJECT_STATUS.md and current PR #1 before proceeding."
+"Continue MiniAV in richardlou12717/MiniAV. Read PROJECT_STATUS.md on main, then plan M2 on a new feature branch."

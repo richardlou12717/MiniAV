@@ -37,6 +37,15 @@ catch (Exception e) when (e is IOException or InvalidDataException or Unauthoriz
     return 2;
 }
 
+using var cancellation = new CancellationTokenSource();
+ConsoleCancelEventHandler cancelHandler = (_, e) =>
+{
+    e.Cancel = true;
+    cancellation.Cancel();
+};
+Console.CancelKeyPress += cancelHandler;
+try
+{
 var coordinator = new ScanCoordinator(engine);
 var outcome = await coordinator.ScanAsync(new ScanRequest(target), result =>
 {
@@ -56,6 +65,16 @@ var outcome = await coordinator.ScanAsync(new ScanRequest(target), result =>
             Console.WriteLine($"ERROR {result.Path}: {result.Message}");
             break;
     }
-});
+}, cancellation.Token);
 Console.WriteLine($"SUMMARY Matched={outcome.Matched} NoMatch={outcome.NoMatch} Skipped={outcome.Skipped} Errors={outcome.Errors + outcome.EngineUnavailable} Database={outcome.SignatureVersion}");
 return outcome.ExitCode;
+}
+catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+{
+    Console.Error.WriteLine("Scan cancelled by user.");
+    return 130;
+}
+finally
+{
+    Console.CancelKeyPress -= cancelHandler;
+}

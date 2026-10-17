@@ -37,10 +37,15 @@ Status: M0 complete. M1 modular scanner compiled and extended regression tests p
 ## Latest Windows verification
 - User confirmed Release build, Core cancellation regression tests and full regression tests passed (2026-10-17). CLI Ctrl+C interaction itself remains untested manually.
 
+## Pending Windows verification
+- Added deterministic simulated IOException/UnauthorizedAccessException cases to Core regression harness.
+- Added opt-in Core ScanRequest.MaxFiles (positive integer). Reaching it reports an error and exit 3; CLI defaults remain unchanged. This is not yet a byte or time budget.
+- Updated harness runs from existing scripts/regression-test.ps1; await local verification.
+
 ## Next work
-1. Add reliable access-denied/read-error coverage and consider scan limits.
-2. Confirm GitHub Actions status and decide whether PR #1 can be merged.
-3. Keep project status/changelog current after verification.
+1. Verify new Core read-error and MaxFiles regressions on Windows.
+2. Review file-byte and scan-time limits, including cancellation behavior.
+3. Confirm GitHub Actions status before merging PR #1.
 
 ## Collaboration
 - ChatGPT acts as architect/developer; user verifies on Windows.

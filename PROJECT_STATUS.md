@@ -1,7 +1,7 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: M0 complete. M1 modular scanner compiled and basic regression tests passed on the user's Windows machine. PR #1 is draft and not merged.
+Status: M0 complete. M1 modular scanner compiled and extended regression tests passed on the user's Windows machine. PR #1 is draft and not merged.
 
 ## Source of truth
 - Repository: https://github.com/richardlou12717/MiniAV (private)
@@ -31,7 +31,7 @@ Status: M0 complete. M1 modular scanner compiled and basic regression tests pass
 - Release build of all three projects successful.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1` reported `Regression tests passed`.
 - Previous intermediate test failures uncovered and fixed stderr handling in PowerShell and uncaught `InvalidDataException`.
-- No independent GitHub Actions success result confirmed here; check PR before merging.
+- Windows Release build and extended regression tests (LF/CRLF signatures, junction skipping, invalid DB, missing target) passed locally after commit 2949d24.\n- No independent GitHub Actions success result confirmed here; check PR before merging.
 
 ## Next work
 1. Add explicit reparse-point/junction test cases on Windows and verify skipping.

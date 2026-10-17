@@ -1,5 +1,10 @@
 # 变更记录
 
+## 2026-10-17 — M1 错误与文件数量限制（待本地验证）
+- Core 回归测试增加模拟 IOException 和 UnauthorizedAccessException，以验证报告 Error 和退出码 3。
+- ScanRequest 新增可选 MaxFiles，超过上限将产生错误而不是静默报告扫描完成；CLI 默认行为不变。
+- 尚未完成 Windows 本地验证；字节和时间限制仍在设计范围内。
+
 ## 2026-10-17 — M1 取消控制（Windows 自动化测试已通过）
 - CLI 捕获 Ctrl+C 并请求取消，返回退出码 130。
 - Core 在报告扫描结果和结束任务前确认取消状态。

@@ -28,6 +28,37 @@ try
     }
 
     Console.WriteLine("Core cancellation regression tests passed");
+
+    // Simulated I/O and access errors do not require elevated Windows permissions.
+    foreach (var failure in new Exception[] { new IOException("simulated I/O failure"), new UnauthorizedAccessException("simulated access denied") })
+    {
+        var reported = new List<ScanResult>();
+        var result = await new ScanCoordinator(new ThrowingEngine(failure))
+            .ScanAsync(new ScanRequest(file), reported.Add);
+        if (result.Errors != 1 || result.ExitCode != 3 ||
+            reported.Count != 1 || reported[0].Status != ScanStatus.Error ||
+            !reported[0].Message!.Contains(failure.Message))
+            throw new Exception($"Error handling failed for {failure.GetType().Name}");
+    }
+    Console.WriteLine("Core read-error regression tests passed");
+
+    // Cap scan work and fail closed instead of reporting an incomplete scan as clean.
+    var limited = Path.Combine(root, "limited");
+    Directory.CreateDirectory(limited);
+    await File.WriteAllTextAsync(Path.Combine(limited, "a.txt"), "a");
+    await File.WriteAllTextAsync(Path.Combine(limited, "b.txt"), "b");
+    var limitedResults = new List<ScanResult>();
+    var limitedOutcome = await coordinator.ScanAsync(new ScanRequest(limited, MaxFiles: 1), limitedResults.Add);
+    if (limitedOutcome.NoMatch != 1 || limitedOutcome.Errors != 1 || limitedOutcome.ExitCode != 3 ||
+        !limitedResults.Any(r => r.Status == ScanStatus.Error && r.Message == "scan file limit reached"))
+        throw new Exception("MaxFiles limit failed to stop or signal incomplete scanning.");
+    try
+    {
+        await coordinator.ScanAsync(new ScanRequest(file, MaxFiles: 0), _ => { });
+        throw new Exception("Expected MaxFiles validation failure");
+    }
+    catch (ArgumentOutOfRangeException) { }
+    Console.WriteLine("Core scan-limit regression tests passed");
 }
 finally
 {
@@ -55,4 +86,11 @@ sealed class StubEngine : IScanEngine
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(new ScanResult(file, ScanStatus.NoMatch));
     }
+}
+
+sealed class ThrowingEngine(Exception failure) : IScanEngine
+{
+    public string SignatureVersion => "throwing-stub";
+    public ValueTask<ScanResult> ScanFileAsync(string file, CancellationToken cancellationToken = default)
+        => ValueTask.FromException<ScanResult>(failure);
 }

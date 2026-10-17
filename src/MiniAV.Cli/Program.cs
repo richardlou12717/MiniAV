@@ -31,7 +31,7 @@ try
 {
     engine = HashScanEngine.Load(databaseFile);
 }
-catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
+catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or NotSupportedException)
 {
     Console.Error.WriteLine($"Cannot load signature DB: {e.Message}");
     return 2;

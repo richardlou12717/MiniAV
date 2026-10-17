@@ -3,7 +3,7 @@ namespace MiniAV.Core;
 public enum ScanStatus { Matched, NoMatch, Skipped, Error, EngineUnavailable }
 public sealed record ScanResult(string Path, ScanStatus Status, string? SignatureId = null,
     string? Category = null, string? Message = null);
-public sealed record ScanRequest(string TargetPath, int? MaxFiles = null);
+public sealed record ScanRequest(string TargetPath, int? MaxFiles = null, long? MaxFileBytes = null);
 public sealed record ScanOutcome(int Matched, int NoMatch, int Skipped, int Errors,
     int EngineUnavailable, string SignatureVersion)
 {
@@ -24,6 +24,8 @@ public sealed class ScanCoordinator(IScanEngine engine)
         ArgumentNullException.ThrowIfNull(report);
         if (request.MaxFiles is <= 0)
             throw new ArgumentOutOfRangeException(nameof(request), "MaxFiles must be positive when specified.");
+        if (request.MaxFileBytes is <= 0)
+            throw new ArgumentOutOfRangeException(nameof(request), "MaxFileBytes must be positive when specified.");
         int filesStarted = 0;
         bool limitReached = false;
         int matched = 0, noMatch = 0, skipped = 0, errors = 0, unavailable = 0;
@@ -53,6 +55,11 @@ public sealed class ScanCoordinator(IScanEngine engine)
                     {
                         limitReached = true;
                         Emit(new(path, ScanStatus.Error, Message: "scan file limit reached"));
+                        return;
+                    }
+                    if (request.MaxFileBytes is long maxBytes && new FileInfo(path).Length > maxBytes)
+                    {
+                        Emit(new(path, ScanStatus.Error, Message: "file size limit exceeded"));
                         return;
                     }
                     filesStarted++;

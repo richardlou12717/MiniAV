@@ -31,14 +31,17 @@ Status: M0 complete. M1 modular scanner compiled and extended regression tests p
 - Release build of all three projects successful.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1` reported `Regression tests passed`.
 - Previous intermediate test failures uncovered and fixed stderr handling in PowerShell and uncaught `InvalidDataException`.
-- Windows Release build and extended regression tests (LF/CRLF signatures, junction skipping, invalid DB, missing target) passed locally after commit 2949d24.\n- No independent GitHub Actions success result confirmed here; check PR before merging.
+- Windows Release build and extended regression tests (LF/CRLF signatures, junction skipping, invalid DB, missing target) passed locally after commit 2949d24.
+- No independent GitHub Actions success result confirmed here; check PR before merging.
+
+## Pending verification
+- Added CLI Ctrl+C cancellation (exit 130) and deterministic Core cancellation harness; Windows local verification still pending.
 
 ## Next work
-1. Add explicit reparse-point/junction test cases on Windows and verify skipping.
-2. Test cancellation and error semantics; consider scan limits before WPF.
-3. Strengthen positive LF/CRLF and exit-code/output assertions.
-4. Inspect GitHub Actions checks and local results; merge PR only when ready.
-5. Update this file and changelog after verified milestones.
+1. Run updated regression script on Windows; confirm Core cancellation tests and existing scans pass.
+2. Add reliable access-denied/read-error coverage and consider scan limits.
+3. Confirm GitHub Actions status and decide whether PR #1 can be merged.
+4. Keep project status/changelog current after verification.
 
 ## Collaboration
 - ChatGPT acts as architect/developer; user verifies on Windows.

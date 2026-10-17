@@ -59,6 +59,25 @@ try
     }
     catch (ArgumentOutOfRangeException) { }
     Console.WriteLine("Core scan-limit regression tests passed");
+
+    var sizeEvents = new List<ScanResult>();
+    var sizeLimited = await coordinator.ScanAsync(
+        new ScanRequest(file, MaxFileBytes: 1), sizeEvents.Add);
+    if (sizeLimited.Errors != 1 || sizeLimited.ExitCode != 3 ||
+        sizeEvents.Count != 1 || sizeEvents[0].Status != ScanStatus.Error ||
+        sizeEvents[0].Message != "file size limit exceeded")
+        throw new Exception("Oversized file must fail closed without hashing.");
+    var sizeAllowed = await coordinator.ScanAsync(
+        new ScanRequest(file, MaxFileBytes: new FileInfo(file).Length), _ => { });
+    if (sizeAllowed.NoMatch != 1 || sizeAllowed.ExitCode != 0)
+        throw new Exception("File at exact size boundary should scan.");
+    try
+    {
+        await coordinator.ScanAsync(new ScanRequest(file, MaxFileBytes: 0), _ => { });
+        throw new Exception("Expected MaxFileBytes validation failure");
+    }
+    catch (ArgumentOutOfRangeException) { }
+    Console.WriteLine("Core file-size regression tests passed");
 }
 finally
 {

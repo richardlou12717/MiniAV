@@ -3,7 +3,7 @@ namespace MiniAV.Core;
 public enum ScanStatus { Matched, NoMatch, Skipped, Error, EngineUnavailable }
 public sealed record ScanResult(string Path, ScanStatus Status, string? SignatureId = null,
     string? Category = null, string? Message = null);
-public sealed record ScanRequest(string TargetPath);
+public sealed record ScanRequest(string TargetPath, int? MaxFiles = null);
 public sealed record ScanOutcome(int Matched, int NoMatch, int Skipped, int Errors,
     int EngineUnavailable, string SignatureVersion)
 {
@@ -20,7 +20,12 @@ public sealed class ScanCoordinator(IScanEngine engine)
     public async Task<ScanOutcome> ScanAsync(ScanRequest request,
         Action<ScanResult> report, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(report);
+        if (request.MaxFiles is <= 0)
+            throw new ArgumentOutOfRangeException(nameof(request), "MaxFiles must be positive when specified.");
+        int filesStarted = 0;
+        bool limitReached = false;
         int matched = 0, noMatch = 0, skipped = 0, errors = 0, unavailable = 0;
         void Emit(ScanResult result)
         {
@@ -44,6 +49,13 @@ public sealed class ScanCoordinator(IScanEngine engine)
                     Emit(new(path, ScanStatus.Skipped, Message: "reparse point"));
                 else
                 {
+                    if (request.MaxFiles is int maximum && filesStarted >= maximum)
+                    {
+                        limitReached = true;
+                        Emit(new(path, ScanStatus.Error, Message: "scan file limit reached"));
+                        return;
+                    }
+                    filesStarted++;
                     var result = await engine.ScanFileAsync(path, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     Emit(result);
@@ -65,7 +77,7 @@ public sealed class ScanCoordinator(IScanEngine engine)
         {
             var pending = new Stack<string>();
             pending.Push(target);
-            while (pending.Count > 0)
+            while (pending.Count > 0 && !limitReached)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var dir = pending.Pop();
@@ -78,6 +90,7 @@ public sealed class ScanCoordinator(IScanEngine engine)
                     }
                     foreach (var entry in Directory.GetFileSystemEntries(dir))
                     {
+                        if (limitReached) break;
                         cancellationToken.ThrowIfCancellationRequested();
                         try
                         {

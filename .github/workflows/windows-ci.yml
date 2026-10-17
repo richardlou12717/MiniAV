@@ -1,0 +1,17 @@
+name: Windows CI
+on:
+  push:
+  pull_request:
+jobs:
+  build-and-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build
+        run: dotnet build src/MiniAV.Cli/MiniAV.Cli.csproj --configuration Release
+      - name: Smoke and regression tests
+        shell: pwsh
+        run: ./scripts/regression-test.ps1

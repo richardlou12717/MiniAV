@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../MiniAV.Core/MiniAV.Core.csproj" />
+    <ProjectReference Include="../MiniAV.Engines.Hash/MiniAV.Engines.Hash.csproj" />
+  </ItemGroup>
 </Project>

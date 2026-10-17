@@ -1,53 +1,55 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: M0 complete; M1 read-only scan prototype validated on Windows; modularization pending.
+Status: M0 complete. M1 modular scanner compiled and extended regression tests passed on the user's Windows machine. PR #1 is draft and not merged.
 
 ## Source of truth
-- Private GitHub repository: https://github.com/richardlou12717/MiniAV
-- Main branch: `main`
-- Windows working directory: `C:\Projects\MiniAV`
-- Architecture and requirements: `docs/00_PROJECT_CHARTER.md` through `docs/07_CHANGELOG.md`
-- Use the repository's latest commit and files over any older chat summary.
+- Repository: https://github.com/richardlou12717/MiniAV (private)
+- Stable branch: `main`
+- Working branch: `feature/m1-modular-scanner`
+- PR: https://github.com/richardlou12717/MiniAV/pull/1
+- User's Windows working directory: `C:\Projects\MiniAV`
+- Always consult the latest repository contents before changing code.
 
-## Scope and technical choices
-- Windows x64 personal, local, on-demand antivirus *scanner*; not a Defender replacement.
-- C# / .NET 10 (SDK 10.0.402 successfully run on user's Windows machine).
-- Hybrid roadmap: own scanning framework and SHA-256 demo engine; optional separate ClamAV adapter later.
-- CLI first, WPF GUI later. No kernel driver or real-time system interception in MVP.
-- Default read-only; never auto-delete, alter or execute scanned files. `NO_MATCH` is not a declaration of safety.
+## Product scope
+- Windows x64, C# / .NET 10, local, on-demand read-only scanning.
+- CLI first, WPF later; optional independent ClamAV adapter later.
+- No file deletion, execution, quarantine or Defender replacement in this milestone.
+- Demo signatures only: `NO_MATCH` does not mean safe.
 
-## Implemented in GitHub
-- `src/MiniAV.Cli/`: initial SHA-256 file/directory scanner.
-- `signatures/demo-hashes.json`: demo database v0.2 containing harmless fixture signatures for LF and CRLF variants.
-- `tests/fixtures/`: harmless demo and ordinary text files.
-- `scripts/smoke-test.ps1`: build and scan smoke test.
-- `.gitattributes`: fixture LF normalization for future checkouts.
-- `docs/`: charter, requirements, architecture, security model, roadmap, ADRs, engineering guidelines and changelog.
+## Completed on M1 feature branch
+- `src/MiniAV.Core/`: `IScanEngine`, `ScanRequest`, `ScanResult`, `ScanOutcome`, `ScanCoordinator`.
+- `src/MiniAV.Engines.Hash/`: asynchronous SHA-256 streaming and demo database loader.
+- CLI preserves existing `--path`, `--db`, output and exit code semantics.
+- `scripts/regression-test.ps1`: CLI positive/negative/missing path/invalid signature DB checks.
+- `.github/workflows/windows-ci.yml`: Windows build and regression runner.
+- Invalid SHA-256 database exception is now converted to CLI exit code 2 instead of a crash.
+- Work is on draft PR #1; main is untouched.
 
-## Verified by user on Windows
-- Git status: `main`, up to date with `origin/main`, clean worktree (at verification time).
-- `dotnet build src\MiniAV.Cli`: succeeded.
-- `dotnet run --project src\MiniAV.Cli -- --path tests\fixtures --db signatures\demo-hashes.json`:
-  - `MATCHED [DEMO-0001-WIN: DemoOnly]` for `demo-sample.txt`
-  - `NO_MATCH` for `ordinary-sample.txt`
-  - `SUMMARY Matched=1 NoMatch=1 Skipped=0 Errors=0 Database=demo-0.2`
-- The specific PowerShell smoke-test wrapper was not yet confirmed separately.
-- This is a fixture-only functionality test, not proof of malware detection coverage.
+## User-verified results (2026-10-17)
+- Debug build of all three projects successful.
+- Release build of all three projects successful.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1` reported `Regression tests passed`.
+- Previous intermediate test failures uncovered and fixed stderr handling in PowerShell and uncaught `InvalidDataException`.
+- Windows Release build and extended regression tests (LF/CRLF signatures, junction skipping, invalid DB, missing target) passed locally after commit 2949d24.
+- No independent GitHub Actions success result confirmed here; check PR before merging.
 
-## Next tasks (M1)
-1. Create `MiniAV.Core` with `IScanEngine`, scan outcomes and orchestration contracts.
-2. Extract SHA-256 engine and signature store from CLI into `MiniAV.Engines.Hash`.
-3. Keep CLI arguments and result semantics compatible.
-4. Add automated tests for positive/negative/error/reparse-point cases, including LF/CRLF fixtures.
-5. Add GitHub Actions for Windows build and tests; ask user to validate locally.
-6. Update this status and `docs/07_CHANGELOG.md` after each milestone.
+## Latest Windows verification
+- User confirmed Release build, Core cancellation regression tests and full regression tests passed (2026-10-17). CLI Ctrl+C interaction itself remains untested manually.
+
+## Latest verification of scan limits and errors
+- User confirmed Release build (1.9 seconds), Core cancellation regression tests, simulated I/O and access-denied tests, MaxFiles tests and full CLI regression tests all passed on Windows.
+- Real ACL-denied tests, interactive Ctrl+C and time/byte limits remain future validation and design work.
+
+## Next work
+1. Review file-byte and scan-time limits, including cancellation behavior.
+2. Check GitHub Actions and PR #1 merge readiness; do not merge without confirmation.
+3. Consider real Windows ACL-denied and interactive Ctrl+C verification.
 
 ## Collaboration
-- User owns project and validates Windows builds/runs.
-- ChatGPT serves as architect and senior programmer during active sessions.
-- Prefer feature branches and pull requests for substantial changes; `main` is the stable baseline.
-- Never commit passwords, personal files, malware samples, quarantine content or private paths.
+- ChatGPT acts as architect/developer; user verifies on Windows.
+- Prefer feature branches and PRs, maintain stable `main`.
+- Never commit personal files, malware samples, secrets or quarantine content.
 
 ## Next-session starter
-"Continue MiniAV in richardlou12717/MiniAV. Read PROJECT_STATUS.md and current repository files, then proceed with M1 modularization."
+"Continue MiniAV in richardlou12717/MiniAV. Read PROJECT_STATUS.md and current PR #1 before proceeding."

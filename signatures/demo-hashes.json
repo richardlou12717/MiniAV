@@ -1,10 +1,15 @@
 {
-  "version": "demo-0.1",
-  "description": "Only harmless demonstration signatures; not real malware intelligence.",
+  "version": "demo-0.2",
+  "description": "Harmless demonstration fixture signatures for LF and Windows CRLF line endings; not real malware intelligence.",
   "signatures": [
     {
       "id": "DEMO-0001",
       "sha256": "af17ca0fcf2bca2ef855d00f689da5c571dc798c4ab4bef416d6ac8ef28776a3",
+      "category": "DemoOnly"
+    },
+    {
+      "id": "DEMO-0001-WIN",
+      "sha256": "a024b1639a4f8deee70d0c7c37f1f950e5fbe441f93bf8adbb381ec47d382689",
       "category": "DemoOnly"
     }
   ]

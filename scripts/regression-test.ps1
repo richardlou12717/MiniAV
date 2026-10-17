@@ -58,8 +58,8 @@ try {
         [System.IO.File]::Copy($lfFile, (Join-Path $outside 'outside-match.txt'))
         $junction = Join-Path $inside 'linked-outside'
         New-Item -ItemType Junction -Path $junction -Target $outside -ErrorAction Stop | Out-Null
-        Invoke-Scan -Target $inside -Database $db -ExpectedExitCode 0 -ExpectedText 'SUMMARY Matched=0 NoMatch=0 Skipped=1 Errors=0' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
-        Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \(directory reparse point\)' -ForbiddenText 'MATCHED|NO_MATCH|ERROR '
+        Invoke-Scan -Target $inside -Database $db -ExpectedExitCode 0 -ExpectedText 'SUMMARY Matched=0 NoMatch=0 Skipped=1 Errors=0' -ForbiddenText '(?m)^(?:MATCHED|NO_MATCH|ERROR)\s'
+        Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \(directory reparse point\)' -ForbiddenText '(?m)^(?:MATCHED|NO_MATCH|ERROR)\s'
 
         Write-Host 'Regression tests passed'
     }

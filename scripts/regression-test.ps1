@@ -4,28 +4,43 @@ Push-Location $root
 try {
     dotnet build .\src\MiniAV.Cli\MiniAV.Cli.csproj --configuration Release
     if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('miniav-test-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null
     try {
-        $fixtures = Join-Path $temp 'fixtures'
-        New-Item -ItemType Directory -Path $fixtures | Out-Null
-        $demo = Join-Path $fixtures 'demo-sample.txt'
-        $ordinary = Join-Path $fixtures 'ordinary-sample.txt'
-        [System.IO.File]::WriteAllBytes($demo, [System.Text.Encoding]::UTF8.GetBytes("This is a harmless MiniAV demo test file.`n"))
-        [System.IO.File]::WriteAllBytes($ordinary, [System.Text.Encoding]::UTF8.GetBytes("ordinary file"))
-        # Use the repository fixtures for match verification, including checked-in line endings.
-        $output = & dotnet run --no-build --configuration Release --project .\src\MiniAV.Cli -- --path .\tests\fixtures --db .\signatures\demo-hashes.json 2>&1
-        if ($LASTEXITCODE -ne 1 -or !($output -match 'MATCHED') -or !($output -match 'NO_MATCH')) {
-            throw "Fixture scan failed: $output"
+        # Start-Process separates stderr from PowerShell's terminating-error pipeline.
+        # Nonzero exit codes are expected for matches (1) and bad input (2).
+        function Invoke-Scan {
+            param(
+                [string]$Target,
+                [string]$Database,
+                [int]$ExpectedExitCode,
+                [string]$ExpectedText
+            )
+            $stdout = Join-Path $temp 'stdout.txt'
+            $stderr = Join-Path $temp 'stderr.txt'
+            $arguments = @(
+                'run', '--no-build', '--configuration', 'Release',
+                '--project', '.\src\MiniAV.Cli',
+                '--', '--path', ('"' + $Target + '"'),
+                '--db', ('"' + $Database + '"')
+            )
+            $process = Start-Process -FilePath 'dotnet' -ArgumentList $arguments -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $output = (Get-Content $stdout -Raw -ErrorAction SilentlyContinue) + (Get-Content $stderr -Raw -ErrorAction SilentlyContinue)
+            if ($process.ExitCode -ne $ExpectedExitCode -or $output -notmatch $ExpectedText) {
+                throw "Scan failed: expected exit $ExpectedExitCode and '$ExpectedText'; actual exit $($process.ExitCode): $output"
+            }
         }
-        $output = & dotnet run --no-build --configuration Release --project .\src\MiniAV.Cli -- --path $ordinary --db .\signatures\demo-hashes.json 2>&1
-        if ($LASTEXITCODE -ne 0 -or !($output -match 'NO_MATCH')) { throw "Negative scan failed: $output" }
-        $output = & dotnet run --no-build --configuration Release --project .\src\MiniAV.Cli -- --path (Join-Path $temp 'missing') --db .\signatures\demo-hashes.json 2>&1
-        if ($LASTEXITCODE -ne 2) { throw "Missing target should exit 2: $output" }
+
+        $db = Join-Path $root 'signatures\demo-hashes.json'
+        Invoke-Scan -Target (Join-Path $root 'tests\fixtures') -Database $db -ExpectedExitCode 1 -ExpectedText 'MATCHED'
+        $ordinary = Join-Path $temp 'ordinary.txt'
+        [System.IO.File]::WriteAllText($ordinary, 'ordinary file')
+        Invoke-Scan -Target $ordinary -Database $db -ExpectedExitCode 0 -ExpectedText 'NO_MATCH'
+        Invoke-Scan -Target (Join-Path $temp 'missing') -Database $db -ExpectedExitCode 2 -ExpectedText 'Target does not exist'
         $bad = Join-Path $temp 'invalid.json'
         [System.IO.File]::WriteAllText($bad, '{"version":"bad","signatures":[{"sha256":"xyz"}]}')
-        $output = & dotnet run --no-build --configuration Release --project .\src\MiniAV.Cli -- --path $ordinary --db $bad 2>&1
-        if ($LASTEXITCODE -ne 2) { throw "Invalid DB should exit 2: $output" }
+        Invoke-Scan -Target $ordinary -Database $bad -ExpectedExitCode 2 -ExpectedText 'invalid SHA-256'
         Write-Host 'Regression tests passed'
     }
     finally { Remove-Item $temp -Recurse -Force }

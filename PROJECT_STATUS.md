@@ -106,3 +106,8 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - WPF validates positive integer limits before scan, passes values to ScanRequest, disables input fields while scanning, and labels any scan with errors as incomplete.
 - WPF limits UI increment is pending Windows build and interactive verification; do not merge PR #2 yet.
 - Suggested test: Max files=1 on tests/fixtures -> exit 3 and limit error; Max file size=1 MiB on a file larger than 1 MiB -> exit 3; Max scan time=1 seconds on a large directory -> incomplete timeout; blank fields -> existing successful scan.
+
+## M2 WPF limits UI verification (2026-10-17)
+- User confirmed WPF Max files=1 on two-file fixtures reports limit exceeded and incomplete scan (exit 3).
+- User confirmed clearing all limit fields restores the original fixture scan behavior (one match, one no-match, exit 1).
+- File size and scan duration UI behavior still require separate interactive verification before M2 merge.

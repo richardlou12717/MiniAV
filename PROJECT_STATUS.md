@@ -62,11 +62,18 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Screenshot: Finished exit 1, processed 2, matched 1, no-match 1, skipped 0, errors 0.
 - Cancellation during an ongoing scan and restart behavior remain unverified.
 
-## Next work (M2 planning)
-1. Create a new feature branch from current main for M2 work.
-2. Design file-byte and scan-time budgets; retain fail-closed incomplete-scan semantics.
-3. Consider real Windows ACL-denied and interactive Ctrl+C verification.
-4. Continue refining CLI scanning and tests before optional GUI development.
+## M2 WPF cancellation/close lifecycle (pending Windows verification)
+- Commit 1c6ec30: cancelling a running scan now disables repeat Cancel requests and labels the scan incomplete.
+- Closing the WPF window during a scan requests cancellation; after the scan finishes or cancels, the pending window close automatically completes.
+- Cancelled scans append an explicit `CANCELLED — scan incomplete` report line; existing Start/Cancel and count behavior is preserved.
+- Windows WPF build, interactive cancellation and window-close tests are NOT yet verified for this increment.
+- Next: test cancellation during a long scan, close-while-scanning, and restart after cancellation; then address per-file byte/time budgets and scale/performance.
+
+## Next work (M2)
+1. Verify WPF cancellation / closing behavior on Windows; leave PR #2 in Draft until verified.
+2. Design actual bytes-read and scan-time budgets; retain fail-closed incomplete-scan semantics.
+3. Consider real Windows ACL-denied and interactive CLI Ctrl+C tests.
+4. Review WPF per-file Dispatcher overhead before scaling to large directory trees.
 
 ## Collaboration
 - ChatGPT acts as architect/developer; user verifies on Windows.

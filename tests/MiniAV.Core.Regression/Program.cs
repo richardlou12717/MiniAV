@@ -1,4 +1,5 @@
 using MiniAV.Core;
+using MiniAV.Engines.Hash;
 
 var root = Path.Combine(Path.GetTempPath(), "miniav-cancellation-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -77,6 +78,16 @@ try
         throw new Exception("Expected MaxFileBytes validation failure");
     }
     catch (ArgumentOutOfRangeException) { }
+    // Exercise the streaming enforcement directly (rather than only the coordinator preflight).
+    var dbFile = Path.Combine(root, "empty-signatures.json");
+    await File.WriteAllTextAsync(dbFile, """{"version":"test","signatures":[]}""");
+    var hashEngine = HashScanEngine.Load(dbFile);
+    var atLimit = await hashEngine.ScanFileAsync(file, new FileInfo(file).Length);
+    var overLimit = await hashEngine.ScanFileAsync(file, new FileInfo(file).Length - 1);
+    var unbounded = await hashEngine.ScanFileAsync(file);
+    if (atLimit.Status != ScanStatus.NoMatch || unbounded.Status != ScanStatus.NoMatch ||
+        overLimit.Status != ScanStatus.Error || overLimit.Message != "file size limit exceeded")
+        throw new Exception("Hash engine actual-read byte limit failed.");
     Console.WriteLine("Core file-size regression tests passed");
 }
 finally
@@ -100,7 +111,7 @@ static async Task ExpectCancelled(Func<Task<ScanOutcome>> action)
 sealed class StubEngine : IScanEngine
 {
     public string SignatureVersion => "stub";
-    public ValueTask<ScanResult> ScanFileAsync(string file, CancellationToken cancellationToken = default)
+    public ValueTask<ScanResult> ScanFileAsync(string file, long? maxFileBytes = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(new ScanResult(file, ScanStatus.NoMatch));
@@ -110,6 +121,6 @@ sealed class StubEngine : IScanEngine
 sealed class ThrowingEngine(Exception failure) : IScanEngine
 {
     public string SignatureVersion => "throwing-stub";
-    public ValueTask<ScanResult> ScanFileAsync(string file, CancellationToken cancellationToken = default)
+    public ValueTask<ScanResult> ScanFileAsync(string file, long? maxFileBytes = null, CancellationToken cancellationToken = default)
         => ValueTask.FromException<ScanResult>(failure);
 }

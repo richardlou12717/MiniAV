@@ -164,6 +164,8 @@ try
                 }
             }
         }
+        await SuspendedLaunchRegression.RunAsync();
+        SuspendedLaunchRegression.RunFailureCleanup();
         Console.WriteLine("ClamAV Job Object membership and close regressions passed");
         Console.WriteLine("ClamAV real subprocess lifecycle regressions passed");
     }

@@ -84,3 +84,6 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 ## M3 resource controls (in development)
 - Added Windows Job Object wrapper (`ClamJob.cs`), applies 2 GiB per-process committed-memory ceiling and kill-on-job-close, refuses an unbounded child on Job attachment failure. Commit `d7edb4b` and follow-up acceptance notes. **Latest Windows CI pending; manual tests not yet run**.
 - Limitations: post-Process.Start Job assignment permits short pre-assignment execution; no aggregate descendant memory limit, no hard CPU cap, no sandbox or evidence of bounded memory under real ClamAV. Do not merge until acceptance tests confirm these boundaries and the remaining risks are reviewed.
+
+## M3 Job aggregate limit follow-up
+- Added `JOB_OBJECT_LIMIT_JOB_MEMORY` (2 GiB aggregate Job committed memory) in addition to the previous per-process 2 GiB limit, branch commit `dfd821d1`. Latest CI not yet confirmed at time of writing. Not a CPU sandbox; startup-before-attachment race remains.

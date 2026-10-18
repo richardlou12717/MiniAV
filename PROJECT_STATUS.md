@@ -1,7 +1,7 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: **M0, M1, M2 merged; M3 adapter first code and fake-runner regressions committed on feature branch (not merged, CI pending).**
+Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI integration, fake-runner and Windows child-process tests committed on feature branch (unmerged; latest CI pending).**
 
 ## Source of truth and branches
 - Private GitHub repository: https://github.com/richardlou12717/MiniAV
@@ -49,7 +49,7 @@ Status: **M0, M1, M2 merged; M3 adapter first code and fake-runner regressions c
 3. M3 design is in `docs/M3_CLAMAV_ADAPTER_DESIGN.md`; initial `src/MiniAV.Engines.ClamAV` process runner, parser, and `tests/MiniAV.ClamAV.Regression` fake-runner suite now exist on feature branch; implementation remains unverified until Windows CI/local tests. executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
 4. Review ClamAV licensing/distribution, signature source/authenticity, update/rollback and offline behavior before implementing updater.
 5. Initial fake-runner suite and adapter committed; `scripts/regression-test.ps1` includes new tests. Draft PR #3 is open. Run Windows CI/local checks; extend process cancellation/output-limit integration tests before accepting.
-6. Adapter is not connected to CLI/WPF yet. Keep feature optional/read-only. Validate ClamAV flags and resource policy with real executable before exposing UI; no silent Defender changes, download, quarantine or execution of scanned files.
+6. Adapter is now opt-in via CLI (`--engine clamav --clamav-exe <absolute path>`, optional `--clamav-db <dir>`), but WPF is not connected. Keep feature optional/read-only. Validate ClamAV flags and resource policy with real executable before exposing UI; no silent Defender changes, download, quarantine or execution of scanned files.
 
 ## Collaboration
 - ChatGPT is project architect/developer; user runs Windows verification.
@@ -58,3 +58,10 @@ Status: **M0, M1, M2 merged; M3 adapter first code and fake-runner regressions c
 
 ## Next-session starter
 "继续 MiniAV 项目。GitHub 仓库 richardlou12717/MiniAV；请先读取 main 的 PROJECT_STATUS.md，再读取必要架构文档与代码，从 M3 的 ClamAV 独立进程适配器方案开始。"
+
+## M3 implementation notes (2026-10-17)
+- New `src/MiniAV.Engines.ClamAV` implements `IScanEngine` with separate `clamscan.exe`, bounded process output, per-file timeout and process-tree termination on cancellation.
+- `tests/MiniAV.ClamAV.Regression` covers fake exit codes, spoofed output, errors, and Windows cmd.exe subprocess lifecycle (timeout/cancel/output-cap). Integrated into `scripts/regression-test.ps1` alongside a CLI missing-executable fail-closed test.
+- CLI opt-in via `--engine clamav --clamav-exe <absolute-path> [--clamav-db <absolute-directory>]`; previous `--path ... --db ...` still uses demo hash engine.
+- CI failure on `22d880a` was a test assertion string mismatch (`unverified` vs `not verified`), corrected in `03261d4`; one corrected-head Windows CI run succeeded. Later commits require new checks.
+- Known gaps: WPF opt-in not implemented; memory Job Object cap, actual ClamAV interoperability/scan-completeness, genuine coverage, real installation, database authenticity/freshness, and release-grade validation are NOT complete. Do not merge yet.

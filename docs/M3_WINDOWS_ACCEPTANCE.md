@@ -97,3 +97,8 @@ The fixture attaches a parent to a **256 MiB Job limit** (both configured per-pr
 - Opt-in test: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --suspended-launch-test`.
 - A harmless cmd.exe child is created with Win32 `CREATE_SUSPENDED`, assigned to `ClamJob`, confirmed in a Job, and only then resumed. Failure cleanup terminates and closes native handles. This is **only** a regression prototype; production `ClamProcessRunner` still uses `Process.Start` followed by `ClamJob.Attach` and thus retains the startup window.
 - Before replacing production launcher, design safe inherited anonymous pipes with explicit inherited-handle allowlist (`STARTUPINFOEX` preferred), argument quoting, lifetime management, cancellation, bounded stdout/stderr, timeout/kill, nested Jobs, and independently verify real ClamAV compatibility. Keep PR Draft.
+
+### User Windows suspended-launch prototype result — 2026-10-18
+- User ran `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --suspended-launch-test`.
+- **PASS (user-observed):** `Suspended-launch Job-before-resume regression passed`.
+- This verifies only a harmless `cmd.exe` prototype through `CREATE_SUSPENDED`, Job attachment, and `ResumeThread`. **Production ClamProcessRunner remains unchanged and continues to have a short process-start-before-Job-assignment window.** No real ClamAV native-launch interoperability, redirected-pipe or cancellation validation was performed by this prototype.

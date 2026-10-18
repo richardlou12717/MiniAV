@@ -29,10 +29,15 @@ This checklist is for **local Windows verification** after GitHub CI passes; it 
 ## Security gates before merge
 - **Real engine compatibility:** verify actual supported ClamAV version and every CLI flag on Windows.
 - **Incomplete coverage:** document limits for archives, encrypted containers, oversized files, parser failures, and `Heuristics.Limits.Exceeded` mapping; no safety guarantee from `NO_MATCH`.
-- **Resource isolation:** process timeout + output cap exist; **hard memory/CPU caps and process sandboxing are not yet implemented**.
+- **Resource isolation:** process timeout + output cap exist; a 2 GiB per-process committed-memory limit via Windows Job Object is newly implemented but CI/local validation pending; hard CPU cap and full sandboxing remain unimplemented.
 - **Distribution/licensing:** no ClamAV binary distributed in M3; review before bundling. Signature provenance/freshness/update/rollback are deferred.
 - **UI manual tests:** no automated native WPF test exists.
 - Document observed command, platform, ClamAV/database version, result, and unresolved limitations in PR #3 before any merge.
 
 ## Performance note
 The initial coordinator invokes one `clamscan` process per file and reloads the signature database each time. Do **not** present it as practical large-directory real-time protection. A persistent daemon or batch interface requires its own architecture/security review.
+
+## Job Object implementation caveats (requires testing)
+- Windows Job Object now applies a **2 GiB per-process committed-memory ceiling** and kill-on-job-close; failure to attach is fail-closed. This is not an aggregate tree memory budget, CPU limit, or sandbox.
+- Process.Start occurs before Job Object assignment; the small pre-assignment execution window remains. Release-hardening should consider starting suspended via native Windows process creation, assigning the Job before resuming, and testing under nested Jobs/enterprise policy.
+- Verify on Windows 11 x64 that child processes run under a Job Object, memory exhaustion returns an incomplete/error result, cancel/timeout reaps descendants, and Job assignment failures do not produce NoMatch.

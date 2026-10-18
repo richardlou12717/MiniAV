@@ -119,3 +119,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - GitHub CI: both checks for `2fa8d84c` passed.
 - This confirms one real, installed ClamAV clean-file execution path, **not** detection of a safe test signature, malware coverage, internal limit handling under pressure, complete scan attestations, memory exhaustion behavior, or WPF real-engine UI acceptance. SignatureVersion output remains explicitly unverified; do not claim full production readiness.
 - Next: add safe EICAR *test string* detection scenario only with user approval/controlled test setup (may trigger Defender), inspect real ClamAV output parsing, WPF manual UI validation, and Job resource stress tests. PR #3 stays Draft.
+
+## M3 WPF manual acceptance — 2026-10-18
+- User validated WPF engine selector/controls, invalid executable fail-closed behavior, real ClamAV scan, cancellation/restart, close-during-scan/child cleanup, and manual log export; details and evidence classification are in `docs/M3_WINDOWS_ACCEPTANCE.md`.
+- Screenshot: missing ClamAV binary caused two errors and exit 3; real ClamAV scanned two harmless fixtures with NoMatch=2, Errors=0 and exit 0. No detection-coverage claim.
+- Next gate: controlled, low-budget Job Object memory-limit verification and further internal-coverage tests. No memory exhaustion proof or hard CPU cap yet. PR #3 remains Draft; main unchanged.

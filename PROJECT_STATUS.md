@@ -41,9 +41,9 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - User confirmed Release build (1.9 seconds), Core cancellation regression tests, simulated I/O and access-denied tests, MaxFiles tests and full CLI regression tests all passed on Windows.
 - Real ACL-denied tests, interactive Ctrl+C and time/byte limits remain future validation and design work.
 
-## M2 in progress (not verified)
+## M2 in progress (first increment Windows verified)
 - New branch: feature/m2-scan-foundation.
-- Added optional MaxFileBytes preflight size check and Core regression tests; local Windows run still pending.
+- Added optional MaxFileBytes preflight size check and Core regression tests; Windows Release build and full regression confirmed by user (3.3 seconds).
 - Scan limit currently checks FileInfo.Length before opening, not bytes actually read; cannot guarantee a hard cap on concurrently growing files.
 - WPF interface, progress, logs and UI cancel remain M2 deliverables.
 

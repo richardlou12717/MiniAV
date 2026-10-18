@@ -113,3 +113,8 @@ Do not switch the production path until the native launcher handles `STARTUPINFO
 - User ran `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --suspended-failure-test` after commit `3b3d45a`.
 - **PASS (user-observed):** `Suspended-launch failure-cleanup regression passed`.
 - Scope: harmless suspended cmd.exe terminated and reaped on test failure path. Does not validate production runner, redirected pipes, or cancellation integration. Full regression and production integration remain pending.
+
+### User Windows full regression — 2026-10-18
+- User executed `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1` after the suspended-launch failure regression repair.
+- **PASS (user-observed):** Release Core/Hash/ClamAV/CLI build; Core cancellation/read-error/file-count/file-size/scan-time/window-close tests; ClamAV Job membership and kill-on-close, real subprocess lifecycle, fake-runner regression, overall regression script.
+- The two suspended-launch tests are separately opt-in and were previously user-verified; they are not run by this default script. Production still uses `Process.Start()` then `ClamJob.Attach()`; no claim of race closure.

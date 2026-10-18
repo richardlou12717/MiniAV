@@ -75,3 +75,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - Latest WPF implementation head `cab21b56` passed two Windows CI runs (2026-10-17 local / 2026-10-18 UTC). No real ClamAV execution yet.
 - ClamAV command now supplies `--alert-exceeds-max=yes` and maps `Heuristics.Limits.Exceeded` detections to `Error` (incomplete), not malware or NoMatch. Source: official clamscan man page. Regression added; latest CI pending.
 - Limit alerts cover certain internal scan limits only; not proof that every archive member was inspected. Real-engine interoperability, further scan-limit behavior, resources and Windows UI manual checks remain release gates.
+
+## M3 follow-up — acceptance planning
+- The latest passing Windows CI checks cover earlier WPF/CLI integration and the initial ClamAV scan-limit alert flag. Further follow-up test head may still be running.
+- Added specific limit-alert regression and `docs/M3_WINDOWS_ACCEPTANCE.md` with local CLI, WPF, and real ClamAV verification steps.
+- **Not yet implemented**: hard memory/CPU process cap, complete scan coverage attestation, verified real ClamAV installation/database, native WPF automation. PR #3 remains Draft.

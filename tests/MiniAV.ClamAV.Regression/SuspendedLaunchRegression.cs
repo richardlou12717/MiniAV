@@ -25,7 +25,7 @@ internal static class SuspendedLaunchRegression
 
         try
         {
-            using var child = Process.GetProcessById(native.ProcessId);
+            using var child = Process.GetProcessById(checked((int)native.ProcessId));
             // An exit before Job attachment would violate this test's safety invariant.
             if (child.HasExited) throw new Exception("FAIL: suspended process executed before attachment.");
             using var job = ClamJob.Attach(child, 128L * 1024 * 1024);

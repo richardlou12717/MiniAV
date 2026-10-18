@@ -1,7 +1,7 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: **M0, M1, M2 complete and merged; M3 architecture design started on feature branch (not merged).**
+Status: **M0, M1, M2 merged; M3 adapter first code and fake-runner regressions committed on feature branch (not merged, CI pending).**
 
 ## Source of truth and branches
 - Private GitHub repository: https://github.com/richardlou12717/MiniAV
@@ -46,10 +46,10 @@ Status: **M0, M1, M2 complete and merged; M3 architecture design started on feat
 ## Next milestone: M3 (design in progress)
 1. Read this status, `docs/02_ARCHITECTURE.md`, `docs/03_SECURITY_MODEL.md`, `docs/05_DECISIONS.md`, `docs/06_ENGINEERING.md` and latest related code.
 2. M3 branch created from `main`; leave `main` stable.
-3. Design documented in `docs/M3_CLAMAV_ADAPTER_DESIGN.md` (commit `ea315346`); next implement/test optional independent-process ClamAV adapter: executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
+3. M3 design is in `docs/M3_CLAMAV_ADAPTER_DESIGN.md`; initial `src/MiniAV.Engines.ClamAV` process runner, parser, and `tests/MiniAV.ClamAV.Regression` fake-runner suite now exist on feature branch; implementation remains unverified until Windows CI/local tests. executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
 4. Review ClamAV licensing/distribution, signature source/authenticity, update/rollback and offline behavior before implementing updater.
-5. First develop deterministic fake-process tests with harmless fixtures, then implement adapter and run Windows CI/local checks; propose a new Draft PR.
-6. Keep feature optional and read-only; no silent Defender changes, download, quarantine or execution of scanned files.
+5. Initial fake-runner suite and adapter committed; `scripts/regression-test.ps1` includes new tests. Draft PR #3 is open. Run Windows CI/local checks; extend process cancellation/output-limit integration tests before accepting.
+6. Adapter is not connected to CLI/WPF yet. Keep feature optional/read-only. Validate ClamAV flags and resource policy with real executable before exposing UI; no silent Defender changes, download, quarantine or execution of scanned files.
 
 ## Collaboration
 - ChatGPT is project architect/developer; user runs Windows verification.

@@ -87,3 +87,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 
 ## M3 Job aggregate limit follow-up
 - Added `JOB_OBJECT_LIMIT_JOB_MEMORY` (2 GiB aggregate Job committed memory) in addition to the previous per-process 2 GiB limit, branch commit `dfd821d1`. Latest CI not yet confirmed at time of writing. Not a CPU sandbox; startup-before-attachment race remains.
+
+## M3 direct Job verification (2026-10-17)
+- The prior head `96533de7` passed both Windows CI runs.
+- Added Windows-only direct Job Object regression using a harmless cmd.exe child: verify membership through `IsProcessInJob`, close the Job, and assert child exit. Regression uses `InternalsVisibleTo` for the test assembly. Latest CI pending.
+- This checks Job assignment and kill-on-close; it does **not** yet prove 2 GiB memory limit behavior under pressure, child-descendant aggregate enforcement, or a suspension-before-assignment guarantee. Real ClamAV remains unverified; retain Draft PR #3.

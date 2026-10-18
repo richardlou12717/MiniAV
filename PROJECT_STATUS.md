@@ -93,3 +93,9 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 
 ## Next-session starter
 "Continue MiniAV in richardlou12717/MiniAV. Read PROJECT_STATUS.md on feature/m2-scan-foundation, then proceed with M2."
+
+## M2 validation and time budget (2026-10-17)
+- User confirmed Windows regression script and WPF Release build passed after streaming byte-budget changes.
+- Added optional MaxScanDuration to ScanRequest. It uses linked cancellation; exceeding the deadline yields an incomplete-scan Error and exit 3. Explicit user cancellation remains distinct.
+- Added Core regression tests for deadline expiry, user cancellation, and invalid duration.
+- New time-budget changes have NOT yet been Windows-verified. No UI or CLI duration argument yet.

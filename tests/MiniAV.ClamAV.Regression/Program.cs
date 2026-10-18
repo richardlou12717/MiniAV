@@ -164,6 +164,20 @@ try
                 }
             }
         }
+        var argv = new[] { "a file 中文.txt", "quote\\\"inside", @"C:\\folder\\", "", "--database=C:\\Clam DB" };
+        var commandLine = WindowsArgumentEncoding.Build(@"C:\\Program Files\\ClamAV\\clamscan.exe", argv);
+        var nativeArgs = NativeCommandLineTest.Parse(commandLine);
+        Require(nativeArgs.SequenceEqual(new[] { @"C:\\Program Files\\ClamAV\\clamscan.exe" }.Concat(argv)),
+            "Windows native command line quoting and Unicode round-trip");
+        Require(WindowsArgumentEncoding.Quote(@"C:\\tail\\").EndsWith(@"\\\\\""),
+            "trailing slash doubled before closing quote");
+        try
+        {
+            WindowsArgumentEncoding.Quote("bad\\0arg");
+            throw new Exception("FAIL: NUL argument accepted");
+        }
+        catch (ArgumentException) { }
+        Console.WriteLine("Windows CreateProcess argument quoting regressions passed");
         await SuspendedLaunchRegression.RunAsync();
         SuspendedLaunchRegression.RunFailureCleanup();
         Console.WriteLine("ClamAV Job Object membership and close regressions passed");

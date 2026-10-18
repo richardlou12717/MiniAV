@@ -89,6 +89,28 @@ try
         overLimit.Status != ScanStatus.Error || overLimit.Message != "file size limit exceeded")
         throw new Exception("Hash engine actual-read byte limit failed.");
     Console.WriteLine("Core file-size regression tests passed");
+
+    var timeoutEvents = new List<ScanResult>();
+    var timedOutcome = await new ScanCoordinator(new SlowEngine()).ScanAsync(
+        new ScanRequest(file, MaxScanDuration: TimeSpan.FromMilliseconds(50)), timeoutEvents.Add);
+    if (timedOutcome.ExitCode != 3 || timedOutcome.Errors != 1 ||
+        timeoutEvents.Count != 1 || timeoutEvents[0].Status != ScanStatus.Error ||
+        timeoutEvents[0].Message != "scan time limit exceeded; scan incomplete")
+        throw new Exception("Deadline must produce an incomplete scan error.");
+
+    using (var userCancel = new CancellationTokenSource())
+    {
+        userCancel.CancelAfter(TimeSpan.FromMilliseconds(30));
+        await ExpectCancelled(() => new ScanCoordinator(new SlowEngine()).ScanAsync(
+            new ScanRequest(file, MaxScanDuration: TimeSpan.FromSeconds(5)), _ => { }, userCancel.Token));
+    }
+    try
+    {
+        await coordinator.ScanAsync(new ScanRequest(file, MaxScanDuration: TimeSpan.Zero), _ => { });
+        throw new Exception("Expected invalid duration rejection");
+    }
+    catch (ArgumentOutOfRangeException) { }
+    Console.WriteLine("Core scan-time regression tests passed");
 }
 finally
 {
@@ -123,4 +145,15 @@ sealed class ThrowingEngine(Exception failure) : IScanEngine
     public string SignatureVersion => "throwing-stub";
     public ValueTask<ScanResult> ScanFileAsync(string file, long? maxFileBytes = null, CancellationToken cancellationToken = default)
         => ValueTask.FromException<ScanResult>(failure);
+}
+
+sealed class SlowEngine : IScanEngine
+{
+    public string SignatureVersion => "slow-stub";
+    public async ValueTask<ScanResult> ScanFileAsync(string file, long? maxFileBytes = null,
+        CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        return new ScanResult(file, ScanStatus.NoMatch);
+    }
 }

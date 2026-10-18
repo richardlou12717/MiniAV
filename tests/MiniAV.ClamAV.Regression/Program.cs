@@ -57,6 +57,40 @@ try
     }
     catch (OperationCanceledException) { }
     Require(ClamAvScanEngine.Parse(file, new(0, "", "")).Status == ScanStatus.NoMatch, "parser clean");
+    // Exercise the real subprocess boundary with harmless Windows shell commands.
+    // Do not require ClamAV installation or load any virus signatures.
+    if (OperatingSystem.IsWindows())
+    {
+        var cmd = Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe";
+        var runner = new ClamProcessRunner();
+        var ok = await runner.RunAsync(cmd, new[] { "/d", "/c", "echo READY" },
+            TimeSpan.FromSeconds(10), CancellationToken.None);
+        Require(ok.ExitCode == 0 && ok.Stdout.Contains("READY"), "real child stdout/exit");
+        try
+        {
+            await runner.RunAsync(cmd, new[] { "/d", "/c", "ping -n 10 127.0.0.1 >NUL" },
+                TimeSpan.FromMilliseconds(250), CancellationToken.None);
+            throw new Exception("FAIL: process timeout not enforced");
+        }
+        catch (TimeoutException) { }
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        try
+        {
+            await runner.RunAsync(cmd, new[] { "/d", "/c", "ping -n 10 127.0.0.1 >NUL" },
+                TimeSpan.FromSeconds(20), cancel.Token);
+            throw new Exception("FAIL: process cancel not enforced");
+        }
+        catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
+        try
+        {
+            await runner.RunAsync(cmd,
+                new[] { "/d", "/c", "for /L %i in (1,1,10000) do @echo 1234567890123456789012345678901234567890" },
+                TimeSpan.FromSeconds(20), CancellationToken.None);
+            throw new Exception("FAIL: process output cap not enforced");
+        }
+        catch (ProcessOutputLimitException) { }
+        Console.WriteLine("ClamAV real subprocess lifecycle regressions passed");
+    }
     Console.WriteLine("ClamAV fake-runner regression tests passed");
 }
 finally

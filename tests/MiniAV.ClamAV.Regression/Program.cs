@@ -1,4 +1,6 @@
 using MiniAV.Core;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
 static void Require(bool condition, string label)
@@ -94,6 +96,36 @@ try
             throw new Exception("FAIL: process output cap not enforced");
         }
         catch (ProcessOutputLimitException) { }
+        // Directly verify Job membership and KILL_ON_JOB_CLOSE; no ClamAV needed.
+        using (var held = Process.Start(new ProcessStartInfo(cmd)
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            ArgumentList = { "/d", "/c", "ping -n 25 127.0.0.1 >NUL" }
+        }) ?? throw new Exception("FAIL: could not start Job fixture"))
+        {
+            try
+            {
+                using (var job = ClamJob.Attach(held, 512L * 1024 * 1024))
+                {
+                    Require(NativeJobTest.IsProcessInJob(held.Handle, IntPtr.Zero, out var inJob) && inJob,
+                        "process assigned to a Windows Job");
+                    Require(!held.HasExited, "test process alive before Job close");
+                }
+                using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await held.WaitForExitAsync(wait.Token);
+                Require(held.HasExited, "Job close terminates worker");
+            }
+            finally
+            {
+                if (!held.HasExited)
+                {
+                    held.Kill(entireProcessTree: true);
+                    await held.WaitForExitAsync();
+                }
+            }
+        }
+        Console.WriteLine("ClamAV Job Object membership and close regressions passed");
         Console.WriteLine("ClamAV real subprocess lifecycle regressions passed");
     }
     Console.WriteLine("ClamAV fake-runner regression tests passed");
@@ -116,4 +148,12 @@ sealed class FakeRunner : IClamProcessRunner
         if (Failure is not null) return Task.FromException<ProcessExecution>(Failure);
         return Task.FromResult(Next);
     }
+}
+
+internal static partial class NativeJobTest
+{
+    [System.Runtime.InteropServices.LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    internal static partial bool IsProcessInJob(IntPtr process, IntPtr job,
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)] out bool inJob);
 }

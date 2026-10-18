@@ -111,6 +111,33 @@ try
     }
     catch (ArgumentOutOfRangeException) { }
     Console.WriteLine("Core scan-time regression tests passed");
+
+    // Deterministic close-while-scanning lifecycle test (no timing or UI clicks).
+    var closeGate = new ScanCloseGate();
+    using (var closeCancellation = new CancellationTokenSource())
+    {
+        var workerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowWorkerExit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var worker = Task.Run(async () =>
+        {
+            workerEntered.SetResult();
+            await allowWorkerExit.Task;
+            closeCancellation.Token.ThrowIfCancellationRequested();
+        });
+        closeGate.ScanStarted();
+        await workerEntered.Task;
+        var mayCloseNow = closeGate.RequestClose(closeCancellation.Cancel);
+        if (mayCloseNow || !closeCancellation.IsCancellationRequested || worker.IsCompleted)
+            throw new Exception("Window close was not deferred while the worker remained active.");
+        // The close gate may only complete after the controlled worker has exited.
+        allowWorkerExit.SetResult();
+        await ExpectCancelled(async () => await worker);
+        if (!closeGate.ScanFinished())
+            throw new Exception("Pending close was not released after scan exit.");
+        if (!closeGate.RequestClose(() => throw new Exception("No cancellation expected after exit")))
+            throw new Exception("Window should be permitted to close after scan exit.");
+    }
+    Console.WriteLine("Core window-close lifecycle regression tests passed");
 }
 finally
 {

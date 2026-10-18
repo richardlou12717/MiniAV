@@ -1,11 +1,11 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: **M0, M1, M2 complete and merged; M3 not started.**
+Status: **M0, M1, M2 complete and merged; M3 architecture design started on feature branch (not merged).**
 
 ## Source of truth and branches
 - Private GitHub repository: https://github.com/richardlou12717/MiniAV
-- Stable branch: `main`. Current development milestone: M3 planning only.
+- Stable branch: `main`. M3 design branch: `feature/m3-clamav-adapter` (not merged).
 - M1: PR #1 merged on 2026-10-17 (`d9efa61bcb9de3d7c7889a9fb53157a5da083990`).
 - M2: PR #2 merged on 2026-10-17 (`64e366996d19e4d2e02bd3540326c883b57f35e5`).
 - M2 feature branch `feature/m2-scan-foundation` is historical; do not develop M3 on it.
@@ -43,10 +43,10 @@ Status: **M0, M1, M2 complete and merged; M3 not started.**
 - File system can change while hashing; scan results are point-in-time. No quarantine or remediation.
 - No claim of production-grade security certification or full testing.
 
-## Next milestone: M3 (not started)
+## Next milestone: M3 (design in progress)
 1. Read this status, `docs/02_ARCHITECTURE.md`, `docs/03_SECURITY_MODEL.md`, `docs/05_DECISIONS.md`, `docs/06_ENGINEERING.md` and latest related code.
-2. Create a new feature branch from latest `main`; leave `main` stable.
-3. Design optional independent-process ClamAV adapter: executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
+2. M3 branch created from `main`; leave `main` stable.
+3. Design documented in `docs/M3_CLAMAV_ADAPTER_DESIGN.md` (commit `ea315346`); next implement/test optional independent-process ClamAV adapter: executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
 4. Review ClamAV licensing/distribution, signature source/authenticity, update/rollback and offline behavior before implementing updater.
 5. First develop deterministic fake-process tests with harmless fixtures, then implement adapter and run Windows CI/local checks; propose a new Draft PR.
 6. Keep feature optional and read-only; no silent Defender changes, download, quarantine or execution of scanned files.

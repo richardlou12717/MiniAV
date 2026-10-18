@@ -16,7 +16,7 @@ try
     await File.WriteAllTextAsync(file, "harmless fixture");
     var fake = new FakeRunner();
     var engine = new ClamAvScanEngine(executable, processRunner: fake);
-    Require(engine.SignatureVersion.Contains("unverified"), "version is not invented");
+    Require(engine.SignatureVersion.Contains("not verified", StringComparison.OrdinalIgnoreCase), "version is not invented");
 
     fake.Next = new(0, "", "");
     Require((await engine.ScanFileAsync(file)).Status == ScanStatus.NoMatch, "clean");

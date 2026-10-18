@@ -97,3 +97,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - Commit `f0fcc7c3` failed both Windows CI runs during ClamAV regression test compilation: SYSLIB1062 / CS0227 caused by test-only `LibraryImport` requiring unsafe compilation. Core/CLI/WPF Release builds and the Core regressions succeeded in these runs.
 - Changed test P/Invoke from source-generated `LibraryImport` to standard `DllImport` in `dd0f25ef`, retaining the repository's no-unsafe compilation policy. CI for this repair was still running when checked.
 - Direct Job membership/kill-on-close test is NOT yet accepted until corrected CI passes. No memory-exhaustion or real ClamAV tests have been run.
+
+## M3 optional real-engine verification helper (2026-10-18)
+- Latest head `f4c7fca2` passed both Windows CI runs, including Job membership/kill-on-close regression.
+- Added `scripts/clamav-local-smoke.ps1` as **manual opt-in only** for a user-installed real ClamAV executable and optional signature folder. It tests a harmless, temporary text file and requires a clean result; it does not download binaries or run in CI.
+- Real ClamAV interoperability is still unverified until user executes this script and shares its result. Other open gates: memory exhaustion enforcement, pre-Job process startup race, signature/database provenance and ClamAV-specific partial-coverage behavior.

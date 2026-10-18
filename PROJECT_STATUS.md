@@ -80,3 +80,7 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - The latest passing Windows CI checks cover earlier WPF/CLI integration and the initial ClamAV scan-limit alert flag. Further follow-up test head may still be running.
 - Added specific limit-alert regression and `docs/M3_WINDOWS_ACCEPTANCE.md` with local CLI, WPF, and real ClamAV verification steps.
 - **Not yet implemented**: hard memory/CPU process cap, complete scan coverage attestation, verified real ClamAV installation/database, native WPF automation. PR #3 remains Draft.
+
+## M3 resource controls (in development)
+- Added Windows Job Object wrapper (`ClamJob.cs`), applies 2 GiB per-process committed-memory ceiling and kill-on-job-close, refuses an unbounded child on Job attachment failure. Commit `d7edb4b` and follow-up acceptance notes. **Latest Windows CI pending; manual tests not yet run**.
+- Limitations: post-Process.Start Job assignment permits short pre-assignment execution; no aggregate descendant memory limit, no hard CPU cap, no sandbox or evidence of bounded memory under real ClamAV. Do not merge until acceptance tests confirm these boundaries and the remaining risks are reviewed.

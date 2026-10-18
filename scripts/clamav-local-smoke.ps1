@@ -4,14 +4,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$exe = [System.IO.Path]::GetFullPath($ClamScanExe)
-if (-not [System.IO.Path]::IsPathFullyQualified($ClamScanExe) -or
+$exe = $ClamScanExe
+if ($ClamScanExe -notmatch '^(?:[A-Za-z]:[\\/]|\\\\[^\\]+\\[^\\]+\\)' -or
     [System.IO.Path]::GetFileName($exe) -ine 'clamscan.exe' -or
     -not (Test-Path -LiteralPath $exe -PathType Leaf)) {
     throw 'Provide an existing, absolute path to clamscan.exe.'
 }
+$exe = [System.IO.Path]::GetFullPath($exe)
 if ($DatabaseDirectory) {
-    if (-not [System.IO.Path]::IsPathFullyQualified($DatabaseDirectory) -or
+    if ($DatabaseDirectory -notmatch '^(?:[A-Za-z]:[\\/]|\\\\[^\\]+\\[^\\]+\\)' -or
         -not (Test-Path -LiteralPath $DatabaseDirectory -PathType Container)) {
         throw 'DatabaseDirectory must be an existing absolute directory.'
     }

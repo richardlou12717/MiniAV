@@ -150,10 +150,10 @@ sealed class FakeRunner : IClamProcessRunner
     }
 }
 
-internal static partial class NativeJobTest
+internal static class NativeJobTest
 {
-    [System.Runtime.InteropServices.LibraryImport("kernel32.dll", SetLastError = true)]
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
     [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    internal static partial bool IsProcessInJob(IntPtr process, IntPtr job,
+    internal static extern bool IsProcessInJob(IntPtr process, IntPtr job,
         [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)] out bool inJob);
 }

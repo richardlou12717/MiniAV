@@ -12,7 +12,7 @@ namespace MiniAV.Wpf;
 public partial class MainWindow : Window
 {
     private CancellationTokenSource? scanCancellation;
-    private bool closeAfterCancellation;
+    private readonly ScanCloseGate closeGate = new();
     private int processed, matched, noMatch, skipped, errors;
     private readonly BlockingCollection<ScanResult> pendingResults = new(new ConcurrentQueue<ScanResult>(), 2000);
     private bool logTruncated;
@@ -169,6 +169,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        closeGate.ScanStarted();
         scanCancellation = new CancellationTokenSource();
         var token = scanCancellation.Token;
         processed = matched = noMatch = skipped = errors = 0;
@@ -226,11 +227,8 @@ public partial class MainWindow : Window
             SaveLogButton.IsEnabled = ResultsBox.Text.Length > 0;
             scanCancellation?.Dispose();
             scanCancellation = null;
-            if (closeAfterCancellation)
-            {
-                closeAfterCancellation = false;
+            if (closeGate.ScanFinished())
                 Close();
-            }
         }
     }
 
@@ -244,12 +242,10 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        if (scanCancellation is not null)
+        if (!closeGate.RequestClose(() => scanCancellation?.Cancel()))
         {
             e.Cancel = true;
-            closeAfterCancellation = true;
             CancelButton.IsEnabled = false;
-            scanCancellation.Cancel();
             StatusText.Text = "Cancelling scan before exit...";
             return;
         }

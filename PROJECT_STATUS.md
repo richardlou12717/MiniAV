@@ -69,6 +69,10 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Windows WPF build, interactive cancellation and window-close tests are NOT yet verified for this increment.
 - Next: test cancellation during a long scan, close-while-scanning, and restart after cancellation; then address per-file byte/time budgets and scale/performance.
 
+## M2 interactive cancellation verification (2026-10-17)
+- User confirmed manual WPF cancellation during an ongoing scan succeeded on Windows.
+- Close-while-scanning and restart-after-cancellation remain separately unverified.
+
 ## Next work (M2)
 1. Verify WPF cancellation / closing behavior on Windows; leave PR #2 in Draft until verified.
 2. Design actual bytes-read and scan-time budgets; retain fail-closed incomplete-scan semantics.

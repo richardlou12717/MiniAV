@@ -22,6 +22,9 @@ try
 
     fake.Next = new(0, "", "");
     Require((await engine.ScanFileAsync(file)).Status == ScanStatus.NoMatch, "clean");
+    fake.BeforeReturn = () => File.AppendAllText(file, " changed during scan");
+    Require((await engine.ScanFileAsync(file)).Status == ScanStatus.Error, "file mutation cannot be clean");
+    fake.BeforeReturn = null;
     Require(fake.Arguments?.Last() == file, "path is a single argument");
     Require(fake.Arguments?.Contains("--infected") == true, "no remediation flag");
     Require(fake.Arguments?.Contains("--alert-exceeds-max=yes") == true, "detect internal limit exclusions");
@@ -139,6 +142,7 @@ sealed class FakeRunner : IClamProcessRunner
 {
     public ProcessExecution Next { get; set; } = new(0, "", "");
     public Exception? Failure { get; set; }
+    public Action? BeforeReturn { get; set; }
     public IReadOnlyList<string>? Arguments { get; private set; }
     public Task<ProcessExecution> RunAsync(string executable, IReadOnlyList<string> arguments,
         TimeSpan timeout, CancellationToken cancellationToken)
@@ -146,6 +150,7 @@ sealed class FakeRunner : IClamProcessRunner
         cancellationToken.ThrowIfCancellationRequested();
         Arguments = arguments.ToArray();
         if (Failure is not null) return Task.FromException<ProcessExecution>(Failure);
+        BeforeReturn?.Invoke();
         return Task.FromResult(Next);
     }
 }

@@ -92,3 +92,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - The prior head `96533de7` passed both Windows CI runs.
 - Added Windows-only direct Job Object regression using a harmless cmd.exe child: verify membership through `IsProcessInJob`, close the Job, and assert child exit. Regression uses `InternalsVisibleTo` for the test assembly. Latest CI pending.
 - This checks Job assignment and kill-on-close; it does **not** yet prove 2 GiB memory limit behavior under pressure, child-descendant aggregate enforcement, or a suspension-before-assignment guarantee. Real ClamAV remains unverified; retain Draft PR #3.
+
+## M3 CI diagnostic / repair (2026-10-18)
+- Commit `f0fcc7c3` failed both Windows CI runs during ClamAV regression test compilation: SYSLIB1062 / CS0227 caused by test-only `LibraryImport` requiring unsafe compilation. Core/CLI/WPF Release builds and the Core regressions succeeded in these runs.
+- Changed test P/Invoke from source-generated `LibraryImport` to standard `DllImport` in `dd0f25ef`, retaining the repository's no-unsafe compilation policy. CI for this repair was still running when checked.
+- Direct Job membership/kill-on-close test is NOT yet accepted until corrected CI passes. No memory-exhaustion or real ClamAV tests have been run.

@@ -99,3 +99,10 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Added optional MaxScanDuration to ScanRequest. It uses linked cancellation; exceeding the deadline yields an incomplete-scan Error and exit 3. Explicit user cancellation remains distinct.
 - Added Core regression tests for deadline expiry, user cancellation, and invalid duration.
 - New time-budget changes have NOT yet been Windows-verified. No UI or CLI duration argument yet.
+
+## M2 Windows verification and WPF limits UI (2026-10-17)
+- User confirmed Release CLI build, entire regression suite (including Core scan-time regression), and Release WPF build all passed.
+- Added optional WPF fields for Max files, Max file size (MiB), Max scan time (seconds), blank = unlimited.
+- WPF validates positive integer limits before scan, passes values to ScanRequest, disables input fields while scanning, and labels any scan with errors as incomplete.
+- WPF limits UI increment is pending Windows build and interactive verification; do not merge PR #2 yet.
+- Suggested test: Max files=1 on tests/fixtures -> exit 3 and limit error; Max file size=1 MiB on a file larger than 1 MiB -> exit 3; Max scan time=1 seconds on a large directory -> incomplete timeout; blank fields -> existing successful scan.

@@ -126,6 +126,7 @@ public sealed class ProcessOutputLimitException : Exception
 public sealed class ClamProcessRunner : IClamProcessRunner
 {
     private const int MaxCapturedCharacters = 32_768;
+    private const long MaxClamProcessMemoryBytes = 2L * 1024 * 1024 * 1024; // 2 GiB private committed memory
 
     public async Task<ProcessExecution> RunAsync(string executable, IReadOnlyList<string> arguments,
         TimeSpan timeout, CancellationToken cancellationToken)
@@ -143,6 +144,17 @@ public sealed class ClamProcessRunner : IClamProcessRunner
         using var process = new Process { StartInfo = start };
         cancellationToken.ThrowIfCancellationRequested();
         if (!process.Start()) throw new Win32Exception("Failed to start ClamAV.");
+        ClamJob job;
+        try { job = ClamJob.Attach(process, MaxClamProcessMemoryBytes); }
+        catch
+        {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) { }
+            catch (Win32Exception) { }
+            await process.WaitForExitAsync(CancellationToken.None);
+            throw; // Never run an unbounded child if Job Object assignment fails.
+        }
+        using var ownedJob = job;
         process.StandardInput.Close();
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout);

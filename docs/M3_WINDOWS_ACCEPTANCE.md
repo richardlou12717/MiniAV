@@ -43,3 +43,10 @@ The initial coordinator invokes one `clamscan` process per file and reloads the 
 - Verify on Windows 11 x64 that child processes run under a Job Object, memory exhaustion returns an incomplete/error result, cancel/timeout reaps descendants, and Job assignment failures do not produce NoMatch.
 
 - Job Object flags now include `JOB_OBJECT_LIMIT_JOB_MEMORY` in addition to `JOB_OBJECT_LIMIT_PROCESS_MEMORY` and `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. Check aggregate committed memory for child descendants in a controlled local stress test; CI's harmless subprocess tests do not prove this cap is enforced under memory pressure.
+
+## Optional real ClamAV smoke (manual only)
+Once ClamAV and its signatures have been installed and verified by the user, run:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clamav-local-smoke.ps1 -ClamScanExe "C:\Path\To\clamscan.exe" -DatabaseDirectory "C:\Path\To\database"
+```
+Omit `-DatabaseDirectory` to use ClamAV's default configuration. This script scans only an automatically created harmless text file, reports errors honestly and cleans up temporary fixtures. It never installs/updates ClamAV, changes Defender, or scans arbitrary personal files. A single clean smoke does not establish scanning completeness or malware coverage.

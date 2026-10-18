@@ -147,3 +147,9 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - User confirmed large-directory scan with bounded result queue and display log, cancellation, and report export worked on Windows.
 - The on-screen log and manually exported log are intentionally partial once display retention is exceeded; aggregate counters remain complete.
 - Pending final deterministic close lifecycle regression and CI validation of that regression.
+
+## M2 deterministic close gate (pending Windows validation)
+- Added production ScanCloseGate in Core; WPF now uses it to defer window closing until its active scan returns, with cancellation requested immediately.
+- Added deterministic Core regression using a controlled worker to verify close is deferred while active and released only after worker exit.
+- This verifies shared production lifecycle gate and simulated worker ordering, not a full UI automation of the native WPF Close event.
+- Code and regression need Windows CI and local verification; keep PR #2 draft pending new green checks.

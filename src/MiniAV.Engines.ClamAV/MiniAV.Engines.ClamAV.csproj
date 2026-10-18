@@ -6,6 +6,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>MiniAV.ClamAV.Regression</_Parameter1>
+    </AssemblyAttribute>
     <ProjectReference Include="../MiniAV.Core/MiniAV.Core.csproj" />
   </ItemGroup>
 </Project>

@@ -52,6 +52,11 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - WPF project is not included in the CLI regression script; build and launch separately on Windows.
 - User verified Windows WPF build, launch and fixture scan: 1 MATCHED, 1 NO_MATCH, 0 errors, 2 processed, exit 1. Cancellation and longer-running scans remain unverified.
 
+## M2 WPF interaction increment (pending Windows verification)
+- Added file/folder/database browse dialogs, live per-status counts and Save log (manual export only).
+- No automatic log collection; report saving requires an explicit user action.
+- WPF compile and UI behaviors for this increment remain unverified; retain Draft PR #2.
+
 ## Next work (M2 planning)
 1. Create a new feature branch from current main for M2 work.
 2. Design file-byte and scan-time budgets; retain fail-closed incomplete-scan semantics.

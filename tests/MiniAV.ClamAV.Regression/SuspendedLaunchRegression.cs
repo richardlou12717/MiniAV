@@ -50,6 +50,40 @@ internal static class SuspendedLaunchRegression
         }
     }
 
+
+    // Deliberately fail before Job assignment/resume: cleanup must terminate the
+    // still-suspended child. This tests the failure path without executing payloads.
+    internal static void RunFailureCleanup()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var cmd = Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe";
+        var start = new StartupInfo { Cb = (uint)Marshal.SizeOf<StartupInfo>() };
+        var line = new StringBuilder("\"" + cmd + "\" /d /c exit 0");
+        if (!CreateProcessW(cmd, line, IntPtr.Zero, IntPtr.Zero, false,
+            CreateSuspended | CreateNoWindow, IntPtr.Zero, null, ref start, out var native))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "CREATE_SUSPENDED failed.");
+        try
+        {
+            if (!GetExitCodeProcess(native.ProcessHandle, out var code) || code != StillActive)
+                throw new Exception("FAIL: test child already exited.");
+            // Simulate failure before attachment: never call ResumeThread.
+        }
+        finally
+        {
+            if (!TerminateProcess(native.ProcessHandle, 90))
+            {
+                CloseHandle(native.ThreadHandle);
+                CloseHandle(native.ProcessHandle);
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not terminate suspended test process.");
+            }
+            var wait = WaitForSingleObject(native.ProcessHandle, 5000);
+            CloseHandle(native.ThreadHandle);
+            CloseHandle(native.ProcessHandle);
+            if (wait != 0) throw new Exception("FAIL: suspended test child was not reaped.");
+        }
+        Console.WriteLine("Suspended-launch failure-cleanup regression passed");
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StartupInfo
     {

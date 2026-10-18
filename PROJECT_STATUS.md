@@ -1,7 +1,7 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation. PR #1 merged into main (merge commit d9efa61bcb9de3d7c7889a9fb53157a5da083990).
+Status: M0, M1 and M2 complete. M2 PR #2 merged into main (merge commit 64e366996d19e4d2e02bd3540326c883b57f35e5).
 
 ## Source of truth
 - Repository: https://github.com/richardlou12717/MiniAV (private)
@@ -158,3 +158,10 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - User verified Windows full Core/CLI regression including deterministic window-close lifecycle test, and WPF Release build. Both succeeded.
 - GitHub Actions latest two runs on head 2137c90 succeeded; PR #2 was draft/open and mergeable without conflicts at review time.
 - M2 ready for merge review; do not merge without user's explicit confirmation. Current scanner remains demo-signature-only, read-only and not a replacement for Defender.
+
+## M2 merged and M3 handoff (2026-10-17)
+- PR #2 successfully merged to main with merge commit 64e366996d19e4d2e02bd3540326c883b57f35e5.
+- Two Windows CI checks for the final M2 PR head (976b966) passed before merge; local Windows CLI/Core regression and WPF Release build also passed.
+- M2 includes WPF, read-only hash scanning, bounded display logging, cancellation, file count/byte/time limits, and deterministic close-gate regression.
+- Next stage M3: design optional ClamAV process adapter and signature update policy; review licensing, distribution, sandboxing, safe process arguments, error and timeout semantics before implementation.
+- M3 should start on a new feature branch from current main. Do not modify stable main directly for features.

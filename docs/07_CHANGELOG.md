@@ -1,3 +1,10 @@
+## 2026-10-17 — M2 foundation (pending verification)
+- Created feature/m2-scan-foundation from merged main.
+- Added optional ScanRequest.MaxFileBytes preflight size limit and regression tests; CLI defaults unchanged.
+- File length is checked before hashing, not a strict byte-stream cap; size changes during scanning require future safeguards.
+- M2 retains WPF UI, progress, logs and cancellation as its primary deliverables.
+- Pending Windows validation and GitHub CI; no merge yet.
+
 # 变更记录
 
 ## 2026-10-17 — M1 错误与文件数量限制（待本地验证）

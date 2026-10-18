@@ -12,6 +12,8 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Build
         run: dotnet build src/MiniAV.Cli/MiniAV.Cli.csproj --configuration Release
+      - name: Build WPF (Release)
+        run: dotnet build src/MiniAV.Wpf/MiniAV.Wpf.csproj --configuration Release
       - name: Smoke and regression tests
         shell: pwsh
         run: ./scripts/regression-test.ps1

@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/MiniAV.Core/MiniAV.Core.csproj" />
+    <ProjectReference Include="../../src/MiniAV.Engines.Hash/MiniAV.Engines.Hash.csproj" />
   </ItemGroup>
 </Project>

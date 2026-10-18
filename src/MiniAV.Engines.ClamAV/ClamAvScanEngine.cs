@@ -49,7 +49,7 @@ public sealed class ClamAvScanEngine : IScanEngine
             if (database is not null && !Directory.Exists(database))
                 return new(path, ScanStatus.EngineUnavailable, Message: "ClamAV database directory not found.");
 
-            var args = new List<string> { "--no-summary", "--infected",
+            var args = new List<string> { "--no-summary", "--infected", "--alert-exceeds-max=yes",
                 "--follow-dir-symlinks=0", "--follow-file-symlinks=0" };
             if (database is not null) args.Add("--database=" + database);
             args.Add("--");
@@ -99,6 +99,8 @@ public sealed class ClamAvScanEngine : IScanEngine
                 line.EndsWith(" FOUND", StringComparison.Ordinal))
             {
                 var name = line.Substring(prefix.Length, line.Length - prefix.Length - " FOUND".Length);
+                if (name.StartsWith("Heuristics.Limits.Exceeded", StringComparison.OrdinalIgnoreCase))
+                    return new(path, ScanStatus.Error, Message: "ClamAV internal scan limit exceeded; scan incomplete.");
                 if (name.Length is > 0 and <= 256 && !name.Any(char.IsControl))
                     return new(path, ScanStatus.Matched, SignatureId: name, Category: "ClamAV");
             }

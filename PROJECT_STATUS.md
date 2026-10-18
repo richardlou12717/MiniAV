@@ -57,6 +57,11 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - No automatic log collection; report saving requires an explicit user action.
 - WPF compile and UI behaviors for this increment remain unverified; retain Draft PR #2.
 
+## M2 WPF interaction verification (2026-10-17)
+- User confirmed Browse controls, result counters, Save log, and 2-file fixture scan work on Windows.
+- Screenshot: Finished exit 1, processed 2, matched 1, no-match 1, skipped 0, errors 0.
+- Cancellation during an ongoing scan and restart behavior remain unverified.
+
 ## Next work (M2 planning)
 1. Create a new feature branch from current main for M2 work.
 2. Design file-byte and scan-time budgets; retain fail-closed incomplete-scan semantics.

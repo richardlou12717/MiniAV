@@ -60,6 +60,35 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Validate all user-supplied limits before starting the worker.
+        static bool TryPositive(string input, out long? value)
+        {
+            value = null;
+            if (string.IsNullOrWhiteSpace(input)) return true;
+            if (!long.TryParse(input, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var number) || number <= 0)
+                return false;
+            value = number;
+            return true;
+        }
+
+        if (!TryPositive(MaxFilesBox.Text.Trim(), out var filesValue) ||
+            filesValue is > int.MaxValue ||
+            !TryPositive(MaxFileMiBBox.Text.Trim(), out var mibValue) ||
+            mibValue is > (long.MaxValue / (1024L * 1024L)) ||
+            !TryPositive(MaxDurationBox.Text.Trim(), out var secondsValue) ||
+            secondsValue is > 4294967L)
+        {
+            MessageBox.Show(this, "Limits must be positive whole numbers within the supported range, or blank for unlimited.",
+                "Invalid scan limit", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var request = new ScanRequest(target,
+            MaxFiles: filesValue is long maxFiles ? (int)maxFiles : null,
+            MaxFileBytes: mibValue is long maxMiB ? maxMiB * 1024L * 1024L : null,
+            MaxScanDuration: secondsValue is long seconds ? TimeSpan.FromSeconds(seconds) : null);
+
         HashScanEngine engine;
         try { engine = HashScanEngine.Load(dbPath); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
@@ -78,6 +107,7 @@ public partial class MainWindow : Window
         CancelButton.IsEnabled = true;
         TargetBox.IsEnabled = false;
         DatabaseBox.IsEnabled = false;
+        MaxFilesBox.IsEnabled = MaxFileMiBBox.IsEnabled = MaxDurationBox.IsEnabled = false;
         BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = false;
         BusyBar.Visibility = Visibility.Visible;
         StatusText.Text = "Scanning...";
@@ -86,7 +116,7 @@ public partial class MainWindow : Window
         {
             // Scanner callbacks run on a worker, and UI updates are marshalled to Dispatcher.
             var outcome = await Task.Run(() => new ScanCoordinator(engine).ScanAsync(
-                new ScanRequest(target), result =>
+                request, result =>
                 {
                     Dispatcher.Invoke(() =>
                     {
@@ -110,7 +140,9 @@ public partial class MainWindow : Window
                         ResultsBox.ScrollToEnd();
                     });
                 }, token));
-            StatusText.Text = $"Finished (exit {outcome.ExitCode})";
+            StatusText.Text = outcome.Errors > 0 || outcome.EngineUnavailable > 0
+                ? $"Finished with errors — scan incomplete (exit {outcome.ExitCode})"
+                : $"Finished (exit {outcome.ExitCode})";
             ResultsBox.AppendText($"SUMMARY Matched={outcome.Matched} NoMatch={outcome.NoMatch} Skipped={outcome.Skipped} Errors={outcome.Errors + outcome.EngineUnavailable}{Environment.NewLine}");
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -130,6 +162,7 @@ public partial class MainWindow : Window
             CancelButton.IsEnabled = false;
             TargetBox.IsEnabled = true;
             DatabaseBox.IsEnabled = true;
+            MaxFilesBox.IsEnabled = MaxFileMiBBox.IsEnabled = MaxDurationBox.IsEnabled = true;
             BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = true;
             SaveLogButton.IsEnabled = ResultsBox.Text.Length > 0;
             scanCancellation?.Dispose();

@@ -9,6 +9,7 @@ namespace MiniAV.Wpf;
 public partial class MainWindow : Window
 {
     private CancellationTokenSource? scanCancellation;
+    private bool closeAfterCancellation;
     private int processed, matched, noMatch, skipped, errors;
 
     private void UpdateCounts() => CountText.Text = $"Processed: {processed} | Matched: {matched} | No match: {noMatch} | Skipped: {skipped} | Errors: {errors}";
@@ -115,6 +116,7 @@ public partial class MainWindow : Window
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             StatusText.Text = "Cancelled — incomplete scan";
+            ResultsBox.AppendText($"CANCELLED — scan incomplete{Environment.NewLine}");
         }
         catch (Exception ex)
         {
@@ -130,18 +132,31 @@ public partial class MainWindow : Window
             DatabaseBox.IsEnabled = true;
             BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = true;
             SaveLogButton.IsEnabled = ResultsBox.Text.Length > 0;
-            scanCancellation.Dispose();
+            scanCancellation?.Dispose();
             scanCancellation = null;
+            if (closeAfterCancellation)
+            {
+                closeAfterCancellation = false;
+                Close();
+            }
         }
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e) => scanCancellation?.Cancel();
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (scanCancellation is null || scanCancellation.IsCancellationRequested) return;
+        CancelButton.IsEnabled = false;
+        StatusText.Text = "Cancelling — incomplete scan";
+        scanCancellation.Cancel();
+    }
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         if (scanCancellation is not null)
         {
             e.Cancel = true;
+            closeAfterCancellation = true;
+            CancelButton.IsEnabled = false;
             scanCancellation.Cancel();
             StatusText.Text = "Cancelling scan before exit...";
             return;

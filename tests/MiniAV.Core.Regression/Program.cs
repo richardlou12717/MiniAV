@@ -131,7 +131,12 @@ try
             throw new Exception("Window close was not deferred while the worker remained active.");
         // The close gate may only complete after the controlled worker has exited.
         allowWorkerExit.SetResult();
-        await ExpectCancelled(async () => await worker);
+        try
+        {
+            await worker;
+            throw new Exception("Controlled worker should have observed cancellation.");
+        }
+        catch (OperationCanceledException) { }
         if (!closeGate.ScanFinished())
             throw new Exception("Pending close was not released after scan exit.");
         if (!closeGate.RequestClose(() => throw new Exception("No cancellation expected after exit")))

@@ -3,7 +3,7 @@ namespace MiniAV.Core;
 public enum ScanStatus { Matched, NoMatch, Skipped, Error, EngineUnavailable }
 public sealed record ScanResult(string Path, ScanStatus Status, string? SignatureId = null,
     string? Category = null, string? Message = null);
-public sealed record ScanRequest(string TargetPath, int? MaxFiles = null, long? MaxFileBytes = null);
+public sealed record ScanRequest(string TargetPath, int? MaxFiles = null, long? MaxFileBytes = null, TimeSpan? MaxScanDuration = null);
 public sealed record ScanOutcome(int Matched, int NoMatch, int Skipped, int Errors,
     int EngineUnavailable, string SignatureVersion)
 {
@@ -19,6 +19,43 @@ public sealed class ScanCoordinator(IScanEngine engine)
 {
     public async Task<ScanOutcome> ScanAsync(ScanRequest request,
         Action<ScanResult> report, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(report);
+        if (request.MaxScanDuration is TimeSpan duration && duration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(request), "MaxScanDuration must be positive when specified.");
+        if (request.MaxScanDuration is not TimeSpan budget)
+            return await ScanInternalAsync(request, report, cancellationToken);
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        int matched = 0, noMatch = 0, skipped = 0, errors = 0, unavailable = 0;
+        void CountAndReport(ScanResult result)
+        {
+            switch (result.Status)
+            {
+                case ScanStatus.Matched: matched++; break;
+                case ScanStatus.NoMatch: noMatch++; break;
+                case ScanStatus.Skipped: skipped++; break;
+                case ScanStatus.Error: errors++; break;
+                case ScanStatus.EngineUnavailable: unavailable++; break;
+            }
+            report(result);
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        deadline.CancelAfter(budget);
+        try
+        {
+            return await ScanInternalAsync(request, CountAndReport, deadline.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)
+        {
+            CountAndReport(new ScanResult(request.TargetPath, ScanStatus.Error, Message: "scan time limit exceeded; scan incomplete"));
+            return new ScanOutcome(matched, noMatch, skipped, errors, unavailable, engine.SignatureVersion);
+        }
+    }
+
+    private async Task<ScanOutcome> ScanInternalAsync(ScanRequest request,
+        Action<ScanResult> report, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(report);

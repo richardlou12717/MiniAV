@@ -1,7 +1,7 @@
 <Window x:Class="MiniAV.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MiniAV — Read-only Scanner" Height="570" Width="860" MinHeight="440" MinWidth="600">
+        Title="MiniAV — Read-only Scanner" Height="650" Width="860" MinHeight="520" MinWidth="600">
   <DockPanel Margin="16">
     <StackPanel DockPanel.Dock="Top">
       <TextBlock Text="MiniAV — On-demand demo scanner" FontSize="21" FontWeight="SemiBold" />
@@ -20,6 +20,21 @@
         <Button x:Name="BrowseDatabaseButton" Content="Browse..." Width="85" DockPanel.Dock="Right" Margin="8,0,0,0" Click="BrowseDatabase_Click" />
         <TextBox x:Name="DatabaseBox" />
       </DockPanel>
+      <TextBlock Text="Optional limits (leave blank for unlimited)" Margin="0,0,0,4" />
+      <WrapPanel Margin="0,0,0,12">
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Max files" />
+          <TextBox x:Name="MaxFilesBox" Width="125" ToolTip="Positive integer or blank" />
+        </StackPanel>
+        <StackPanel Margin="0,0,12,0">
+          <TextBlock Text="Max file size (MiB)" />
+          <TextBox x:Name="MaxFileMiBBox" Width="145" ToolTip="Positive integer MiB or blank" />
+        </StackPanel>
+        <StackPanel>
+          <TextBlock Text="Max scan time (seconds)" />
+          <TextBox x:Name="MaxDurationBox" Width="155" ToolTip="Positive integer seconds or blank" />
+        </StackPanel>
+      </WrapPanel>
       <StackPanel Orientation="Horizontal">
         <Button x:Name="StartButton" Content="Start scan" Width="110" Padding="8,5" Click="Start_Click" />
         <Button x:Name="CancelButton" Content="Cancel" IsEnabled="False" Width="90" Margin="10,0,0,0"

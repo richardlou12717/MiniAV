@@ -1,3 +1,14 @@
+if (args.Length > 0 && args[0] == "--job-memory-stress")
+{
+    await JobMemoryStress.RunAsync();
+    return;
+}
+if (args.Length > 0 && args[0] == "--job-memory-worker")
+{
+    JobMemoryStress.Worker();
+    return;
+}
+
 using MiniAV.Core;
 using System.Diagnostics;
 using System.Runtime.InteropServices;

@@ -66,6 +66,19 @@ try {
         Invoke-Scan -Target $inside -Database $db -ExpectedExitCode 0 -ExpectedText 'SUMMARY Matched=0 NoMatch=0 Skipped=1 Errors=0' -ForbiddenText '(?m)^(?:MATCHED|NO_MATCH|ERROR)\s'
         Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \(directory reparse point\)' -ForbiddenText '(?m)^(?:MATCHED|NO_MATCH|ERROR)\s'
 
+        # ClamAV requires explicit opt-in; a missing binary is unavailable, never NO_MATCH.
+        $missingClam = Join-Path $temp 'missing-clamav\clamscan.exe'
+        $clamOut = Join-Path $temp 'clam-stdout.txt'
+        $clamErr = Join-Path $temp 'clam-stderr.txt'
+        $clamArgs = @('run', '--no-build', '--configuration', 'Release',
+            '--project', '.\src\MiniAV.Cli', '--',
+            '--path', ('"' + $ordinary + '"'),
+            '--engine', 'clamav', '--clamav-exe', ('"' + $missingClam + '"'))
+        $clamProcess = Start-Process -FilePath 'dotnet' -ArgumentList $clamArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput $clamOut -RedirectStandardError $clamErr
+        $clamText = (Get-Content $clamOut -Raw -ErrorAction SilentlyContinue) + (Get-Content $clamErr -Raw -ErrorAction SilentlyContinue)
+        if ($clamProcess.ExitCode -ne 3 -or $clamText -notmatch 'ClamAV executable not found' -or $clamText -match '(?m)^NO_MATCH ') {
+            throw "Missing ClamAV was not fail-closed: exit $($clamProcess.ExitCode), $clamText"
+        }
         Write-Host 'Regression tests passed'
     }
     finally { Remove-Item $temp -Recurse -Force }

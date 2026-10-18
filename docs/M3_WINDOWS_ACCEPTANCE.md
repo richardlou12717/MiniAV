@@ -118,3 +118,8 @@ Do not switch the production path until the native launcher handles `STARTUPINFO
 - User executed `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1` after the suspended-launch failure regression repair.
 - **PASS (user-observed):** Release Core/Hash/ClamAV/CLI build; Core cancellation/read-error/file-count/file-size/scan-time/window-close tests; ClamAV Job membership and kill-on-close, real subprocess lifecycle, fake-runner regression, overall regression script.
 - The two suspended-launch tests are separately opt-in and were previously user-verified; they are not run by this default script. Production still uses `Process.Start()` then `ClamJob.Attach()`; no claim of race closure.
+
+### User Windows regression including suspended launch — 2026-10-18
+- User reran `scripts/regression-test.ps1` after suspended-launch regressions were included in the normal suite.
+- **PASS (user-observed):** Release build; six Core regressions; `Suspended-launch Job-before-resume regression passed`; `Suspended-launch failure-cleanup regression passed`; ClamAV Job membership/close, subprocess lifecycle, fake runner, and overall regression tests all passed.
+- This verifies only existing production behavior and isolated launch tests. Native suspended launch with redirected pipes is still unimplemented; no production race fix is claimed.

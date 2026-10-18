@@ -108,3 +108,8 @@ Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regr
 
 ### Production native-launch integration design gate
 Do not switch the production path until the native launcher handles `STARTUPINFOEX` with `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` (only the intended stdin/stdout/stderr pipe endpoints inherited), Windows command-line escaping, reliable output draining and 32,768-character caps, cancellation/timeout before and after ResumeThread, Job assignment before ResumeThread, parent/child handle ownership, and `CREATE_SUSPENDED` cleanup on all failures. Verify harmless subprocess regressions, real ClamAV 1.5.4, WPF cancel/close, Windows CI, and no changes to Defender or user files. Treat nested Job incompatibility as an incomplete/error outcome rather than weakening resource bounds.
+
+### User Windows suspended failure-path test — 2026-10-18
+- User ran `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --suspended-failure-test` after commit `3b3d45a`.
+- **PASS (user-observed):** `Suspended-launch failure-cleanup regression passed`.
+- Scope: harmless suspended cmd.exe terminated and reaped on test failure path. Does not validate production runner, redirected pipes, or cancellation integration. Full regression and production integration remain pending.

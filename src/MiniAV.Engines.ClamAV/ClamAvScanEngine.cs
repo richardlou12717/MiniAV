@@ -42,7 +42,10 @@ public sealed class ClamAvScanEngine : IScanEngine
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
                 return new(path, ScanStatus.Skipped, Message: "reparse point");
             if (maxFileBytes is <= 0) throw new ArgumentOutOfRangeException(nameof(maxFileBytes));
-            if (maxFileBytes is long limit && new FileInfo(path).Length > limit)
+            var before = new FileInfo(path);
+            var initialLength = before.Length;
+            var initialModifiedUtc = before.LastWriteTimeUtc;
+            if (maxFileBytes is long limit && initialLength > limit)
                 return new(path, ScanStatus.Error, Message: "file size limit exceeded");
             if (!File.Exists(executable))
                 return new(path, ScanStatus.EngineUnavailable, Message: "ClamAV executable not found.");
@@ -74,6 +77,11 @@ public sealed class ClamAvScanEngine : IScanEngine
                 return new(path, ScanStatus.EngineUnavailable, Message: "ClamAV process could not start.");
             }
 
+            // A file may change after coordinator's preflight and while ClamAV reads it.
+            // Metadata comparison detects common mutations; it is not an atomic snapshot.
+            var after = new FileInfo(path);
+            if (after.Length != initialLength || after.LastWriteTimeUtc != initialModifiedUtc)
+                return new(path, ScanStatus.Error, Message: "File changed during external scan; scan incomplete.");
             return Parse(path, execution);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

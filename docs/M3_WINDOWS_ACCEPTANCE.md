@@ -79,3 +79,10 @@ The test launches a harmless .NET child, waits for a READY handshake, attaches a
 - **PASS (user-observed):** `ClamAV Job Object low-budget memory stress passed (192 MiB cap / 256 MiB target)`; worker exit `42`, output `MEMORY_LIMIT_REACHED`.
 - This is evidence of observed low-budget memory-allocation rejection while a Job with both per-process and aggregate committed-memory limits was applied. Since both thresholds were equal, the test cannot isolate aggregate limit enforcement. It does not establish the production 2 GiB behavior or descendant aggregate limits.
 - Next: distinct per-process vs aggregate memory-limit regression using controlled child workers; preserve safety/cleanup/timeout, and do not use real ClamAV or unbounded allocations.
+
+### Opt-in aggregate Job memory test (pending local Windows verification)
+Run after checking CI:
+```powershell
+dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj --configuration Release -- --job-aggregate-stress
+```
+The fixture attaches a parent to a **256 MiB Job limit** (both configured per-process and aggregate). The parent holds **112 MiB** in touched allocations and spawns a descendant, which attempts **160 MiB**. Each worker requests less than the per-process budget, while their combined target exceeds the Job budget. The test is opt-in and includes a 40-second parent timeout and cleanup. Treat PASS as an observed aggregate-limit rejection in this setup, not proof against all Windows policy/launch races or of exact committed-memory accounting. Does not run ClamAV or change the production 2 GiB cap.

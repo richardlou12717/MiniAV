@@ -47,6 +47,11 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Scan limit currently checks FileInfo.Length before opening, not bytes actually read; cannot guarantee a hard cap on concurrently growing files.
 - WPF interface, progress, logs and UI cancel remain M2 deliverables.
 
+## M2 WPF scaffold (pending Windows verification)
+- Added src/MiniAV.Wpf with a read-only scan window, Start/Cancel, result log, indeterminate progress and processed-item count.
+- WPF project is not included in the CLI regression script; build and launch separately on Windows.
+- No Windows WPF build or runtime confirmation yet; do not merge PR #2 until verified.
+
 ## Next work (M2 planning)
 1. Create a new feature branch from current main for M2 work.
 2. Design file-byte and scan-time budgets; retain fail-closed incomplete-scan semantics.

@@ -10,6 +10,10 @@ try {
     dotnet run --project .\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj --configuration Release
     if ($LASTEXITCODE -ne 0) { throw 'ClamAV adapter regression tests failed' }
 
+    # Validate local real-engine smoke script syntax with built-in Windows PowerShell 5.1.
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Join-Path (Get-Location) "scripts/clamav-local-smoke.ps1"), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count) { $errors | Out-String | Write-Host; exit 1 }'
+    if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell 5.1 smoke-script syntax test failed' }
+
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('miniav-test-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null
     try {

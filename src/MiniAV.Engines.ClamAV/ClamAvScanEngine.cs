@@ -149,9 +149,9 @@ public sealed class ClamProcessRunner : IClamProcessRunner
         var stderr = ReadBoundedAsync(process.StandardError, deadline.Token);
         try
         {
-            await process.WaitForExitAsync(deadline.Token);
-            var results = await Task.WhenAll(stdout, stderr);
-            return new ProcessExecution(process.ExitCode, results[0], results[1]);
+            // Watch readers and child together: an overflowing pipe must abort the child.
+            await Task.WhenAll(process.WaitForExitAsync(deadline.Token), stdout, stderr);
+            return new ProcessExecution(process.ExitCode, await stdout, await stderr);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)
         {
@@ -161,12 +161,14 @@ public sealed class ClamProcessRunner : IClamProcessRunner
         {
             if (!process.HasExited)
             {
-                process.Kill(entireProcessTree: true);
+                try { process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) { } // exited concurrently
                 await process.WaitForExitAsync(CancellationToken.None);
             }
-            // Observe pipe tasks if cancellation/error occurred (avoid unobserved failures).
+            // Never turn a primary reader/timeout exception into a clean result.
             try { await Task.WhenAll(stdout, stderr); }
             catch (OperationCanceledException) when (deadline.IsCancellationRequested) { }
+            catch (ProcessOutputLimitException) { }
         }
     }
 

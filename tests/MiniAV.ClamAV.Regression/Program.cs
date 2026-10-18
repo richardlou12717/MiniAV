@@ -29,6 +29,8 @@ try
     Require(hit.Status == ScanStatus.Matched && hit.SignatureId == "Test.Signature", "matched and signature");
     fake.Next = new(1, file + ": Heuristics.Limits.Exceeded FOUND\n", "");
     Require((await engine.ScanFileAsync(file)).Status == ScanStatus.Error, "internal size/recursion limit cannot count as malware or clean");
+    fake.Next = new(1, file + ": Heuristics.Limits.Exceeded.MaxFileSize FOUND\n", "");
+    Require((await engine.ScanFileAsync(file)).Status == ScanStatus.Error, "specific internal limit variant incomplete");
     fake.Next = new(1, "", "");
     Require((await engine.ScanFileAsync(file)).Status == ScanStatus.Error, "missing detection text");
     fake.Next = new(1, "OTHER: Test FOUND\n", "");

@@ -134,3 +134,11 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - CI now also builds src/MiniAV.Wpf/MiniAV.Wpf.csproj in Release on windows-latest (commit e5de708).
 - Updated workflow awaits a new GitHub Actions pass; do not treat the previous successful run as validation of the new workflow.
 - Before merge: verify new CI run succeeds, implement a deterministic close-waits-for-scan lifecycle test, and address unbounded scan log memory or document an explicit M2 cap.
+
+## M2 bounded WPF result display (pending Windows validation)
+- GitHub Actions Windows CI including WPF Release build passed for preceding commit 898f2d4.
+- WPF now uses a bounded 2,000-result BlockingCollection with cancellation-aware producer backpressure instead of an unbounded queue.
+- Visible TextBox log capped at approximately 500,000 characters (and batches truncated if oversized); earlier display entries are omitted when cap is exceeded. Summary counters remain full.
+- Manual Save log explicitly prefixes PARTIAL DISPLAY LOG when entries were dropped; this is not a full forensic report. There is no automatic persistent log.
+- Changes require Windows WPF compile and large-directory cancel/restart/export verification; latest CI status needs rechecking after commits.
+- Deterministic close-waits-for-worker test still pending; do not merge PR #2 yet.

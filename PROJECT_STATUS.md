@@ -111,3 +111,8 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - User confirmed WPF Max files=1 on two-file fixtures reports limit exceeded and incomplete scan (exit 3).
 - User confirmed clearing all limit fields restores the original fixture scan behavior (one match, one no-match, exit 1).
 - File size and scan duration UI behavior still require separate interactive verification before M2 merge.
+
+## M2 WPF additional limits verified (2026-10-17)
+- User confirmed WPF max file size and max scan duration interactive tests both succeeded on Windows.
+- All three WPF limit settings have now received user validation, including previous max files and blank/unlimited cases.
+- Remaining M2 work: performance review (per-result synchronous Dispatcher.Invoke and repeated UI append/scroll), closing while scanning and restart after cancellation, end-to-end CI and PR review.

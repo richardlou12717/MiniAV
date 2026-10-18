@@ -46,13 +46,19 @@ public partial class MainWindow : Window
                 .Append(result.Message).AppendLine();
         }
         if (count == 0) return;
-        if (ResultsBox.Text.Length + text.Length > MaxDisplayCharacters)
+        var chunk = text.ToString();
+        if (chunk.Length > MaxDisplayCharacters / 2)
+        {
+            logTruncated = true;
+            chunk = chunk[^(MaxDisplayCharacters / 2)..];
+        }
+        if (ResultsBox.Text.Length + chunk.Length > MaxDisplayCharacters)
         {
             logTruncated = true;
             ResultsBox.Clear();
             ResultsBox.AppendText("[Earlier scan details omitted from display due to memory limit]" + Environment.NewLine);
         }
-        ResultsBox.AppendText(text.ToString());
+        ResultsBox.AppendText(chunk);
         ResultsBox.ScrollToEnd();
         UpdateCounts();
     }

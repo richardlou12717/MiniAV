@@ -33,7 +33,7 @@ public sealed class HashScanEngine : IScanEngine
         return new(db.Version, signatures);
     }
 
-    public async ValueTask<ScanResult> ScanFileAsync(string file, CancellationToken cancellationToken = default)
+    public async ValueTask<ScanResult> ScanFileAsync(string file, long? maxFileBytes = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -42,7 +42,31 @@ public sealed class HashScanEngine : IScanEngine
             await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete, 128 * 1024,
                 FileOptions.Asynchronous | FileOptions.SequentialScan);
-            var hash = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken));
+            string hash;
+            if (maxFileBytes is long limit)
+            {
+                if (limit <= 0) throw new ArgumentOutOfRangeException(nameof(maxFileBytes));
+                // Read at most one byte beyond the limit to detect a growing file.
+                using var incremental = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                var buffer = new byte[128 * 1024];
+                long total = 0;
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var length = (int)Math.Min(buffer.Length, limit - total + 1L);
+                    var read = await stream.ReadAsync(buffer.AsMemory(0, length), cancellationToken);
+                    if (read == 0) break;
+                    if (read > limit - total)
+                        return new(file, ScanStatus.Error, Message: "file size limit exceeded");
+                    incremental.AppendData(buffer, 0, read);
+                    total += read;
+                }
+                hash = Convert.ToHexString(incremental.GetHashAndReset());
+            }
+            else
+            {
+                hash = Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken));
+            }
             return signatures.TryGetValue(hash, out var hit)
                 ? new(file, ScanStatus.Matched, hit.Id, hit.Category)
                 : new(file, ScanStatus.NoMatch);

@@ -50,7 +50,7 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 ## M2 WPF scaffold (pending Windows verification)
 - Added src/MiniAV.Wpf with a read-only scan window, Start/Cancel, result log, indeterminate progress and processed-item count.
 - WPF project is not included in the CLI regression script; build and launch separately on Windows.
-- No Windows WPF build or runtime confirmation yet; do not merge PR #2 until verified.
+- User verified Windows WPF build, launch and fixture scan: 1 MATCHED, 1 NO_MATCH, 0 errors, 2 processed, exit 1. Cancellation and longer-running scans remain unverified.
 
 ## Next work (M2 planning)
 1. Create a new feature branch from current main for M2 work.

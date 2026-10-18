@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 namespace MiniAV.Engines.ClamAV;
 
 /// <summary>
-/// Windows Job Object lifetime + per-process committed-memory ceiling.
+/// Windows Job Object lifetime + per-process and aggregate Job committed-memory ceilings.
 /// Note: assignment happens immediately after Process.Start, not atomically at creation.
 /// This is NOT a sandbox, and does not provide a hard CPU-time limit.
 /// </summary>
@@ -13,6 +13,7 @@ internal sealed class ClamJob : IDisposable
 {
     private const uint JobObjectLimitKillOnJobClose = 0x00002000;
     private const uint JobObjectLimitProcessMemory = 0x00000100;
+    private const uint JobObjectLimitJobMemory = 0x00000200;
     private const int JobObjectExtendedLimitInformation = 9;
     private IntPtr handle;
 
@@ -34,9 +35,10 @@ internal sealed class ClamJob : IDisposable
             {
                 BasicLimitInformation = new JOBOBJECT_BASIC_LIMIT_INFORMATION
                 {
-                    LimitFlags = JobObjectLimitKillOnJobClose | JobObjectLimitProcessMemory
+                    LimitFlags = JobObjectLimitKillOnJobClose | JobObjectLimitProcessMemory | JobObjectLimitJobMemory
                 },
-                ProcessMemoryLimit = new UIntPtr((ulong)maxProcessMemoryBytes)
+                ProcessMemoryLimit = new UIntPtr((ulong)maxProcessMemoryBytes),
+                JobMemoryLimit = new UIntPtr((ulong)maxProcessMemoryBytes)
             };
             if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation,
                 ref info, (uint)Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>()))

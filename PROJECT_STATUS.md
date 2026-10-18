@@ -142,3 +142,8 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Manual Save log explicitly prefixes PARTIAL DISPLAY LOG when entries were dropped; this is not a full forensic report. There is no automatic persistent log.
 - Changes require Windows WPF compile and large-directory cancel/restart/export verification; latest CI status needs rechecking after commits.
 - Deterministic close-waits-for-worker test still pending; do not merge PR #2 yet.
+
+## M2 bounded log Windows verification (2026-10-17)
+- User confirmed large-directory scan with bounded result queue and display log, cancellation, and report export worked on Windows.
+- The on-screen log and manually exported log are intentionally partial once display retention is exceeded; aggregate counters remain complete.
+- Pending final deterministic close lifecycle regression and CI validation of that regression.

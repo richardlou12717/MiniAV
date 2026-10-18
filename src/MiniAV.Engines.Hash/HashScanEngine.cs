@@ -53,7 +53,8 @@ public sealed class HashScanEngine : IScanEngine
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var length = (int)Math.Min(buffer.Length, limit - total + 1L);
+                    var remaining = limit - total;
+                    var length = remaining >= buffer.Length ? buffer.Length : (int)(remaining + 1);
                     var read = await stream.ReadAsync(buffer.AsMemory(0, length), cancellationToken);
                     if (read == 0) break;
                     if (read > limit - total)

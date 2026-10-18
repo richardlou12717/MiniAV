@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Microsoft.Win32;
 using MiniAV.Core;
 using MiniAV.Engines.Hash;
 
@@ -8,7 +9,38 @@ namespace MiniAV.Wpf;
 public partial class MainWindow : Window
 {
     private CancellationTokenSource? scanCancellation;
-    private int processed;
+    private int processed, matched, noMatch, skipped, errors;
+
+    private void UpdateCounts() => CountText.Text = $"Processed: {processed} | Matched: {matched} | No match: {noMatch} | Skipped: {skipped} | Errors: {errors}";
+
+    private void BrowseFile_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Choose file to scan", CheckFileExists = true };
+        if (dialog.ShowDialog(this) == true) TargetBox.Text = dialog.FileName;
+    }
+
+    private void BrowseFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "Choose folder to scan" };
+        if (dialog.ShowDialog(this) == true) TargetBox.Text = dialog.FolderName;
+    }
+
+    private void BrowseDatabase_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Choose demo signature database", Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*" };
+        if (dialog.ShowDialog(this) == true) DatabaseBox.Text = dialog.FileName;
+    }
+
+    private void SaveLog_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog { Title = "Save MiniAV scan report", Filter = "Text logs (*.txt)|*.txt", FileName = "MiniAV-scan-report.txt" };
+        if (dialog.ShowDialog(this) != true) return;
+        try { File.WriteAllText(dialog.FileName, ResultsBox.Text); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            MessageBox.Show(this, ex.Message, "Cannot save report", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 
     public MainWindow()
     {
@@ -37,13 +69,15 @@ public partial class MainWindow : Window
 
         scanCancellation = new CancellationTokenSource();
         var token = scanCancellation.Token;
-        processed = 0;
-        CountText.Text = "Processed: 0";
+        processed = matched = noMatch = skipped = errors = 0;
+        UpdateCounts();
         ResultsBox.Clear();
+        SaveLogButton.IsEnabled = false;
         StartButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
         TargetBox.IsEnabled = false;
         DatabaseBox.IsEnabled = false;
+        BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = false;
         BusyBar.Visibility = Visibility.Visible;
         StatusText.Text = "Scanning...";
 
@@ -56,7 +90,14 @@ public partial class MainWindow : Window
                     Dispatcher.Invoke(() =>
                     {
                         processed++;
-                        CountText.Text = $"Processed: {processed}";
+                        switch (result.Status)
+                        {
+                            case ScanStatus.Matched: matched++; break;
+                            case ScanStatus.NoMatch: noMatch++; break;
+                            case ScanStatus.Skipped: skipped++; break;
+                            default: errors++; break;
+                        }
+                        UpdateCounts();
                         var label = result.Status switch
                         {
                             ScanStatus.Matched => $"MATCHED [{result.SignatureId}]",
@@ -87,6 +128,8 @@ public partial class MainWindow : Window
             CancelButton.IsEnabled = false;
             TargetBox.IsEnabled = true;
             DatabaseBox.IsEnabled = true;
+            BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = true;
+            SaveLogButton.IsEnabled = ResultsBox.Text.Length > 0;
             scanCancellation.Dispose();
             scanCancellation = null;
         }

@@ -73,6 +73,13 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - User confirmed manual WPF cancellation during an ongoing scan succeeded on Windows.
 - Close-while-scanning and restart-after-cancellation remain separately unverified.
 
+## M2 streaming byte budget (pending Windows verification)
+- Core now passes `MaxFileBytes` to `IScanEngine.ScanFileAsync` instead of relying only on `FileInfo.Length` preflight.
+- SHA-256 engine hashes asynchronously in bounded chunks and reads at most one byte beyond the limit to identify files that have grown; over-budget files report `Error` instead of `NoMatch`.
+- Regression executable includes Hash engine boundary cases (exact size, size minus one, unbounded).
+- Changes are committed on feature/m2-scan-foundation; Windows compile and regression are NOT yet verified. No .NET SDK is available in the development container.
+- The WPF UI currently does not expose MaxFileBytes; next step includes considering user-facing limits and scan-time budgets.
+
 ## Next work (M2)
 1. Verify WPF cancellation / closing behavior on Windows; leave PR #2 in Draft until verified.
 2. Design actual bytes-read and scan-time budgets; retain fail-closed incomplete-scan semantics.

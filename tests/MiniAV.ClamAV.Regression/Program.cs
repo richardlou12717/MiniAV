@@ -3,6 +3,11 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--suspended-launch-test")
+{
+    await SuspendedLaunchRegression.RunAsync();
+    return;
+}
 if (args.Length > 0 && args[0] == "--job-aggregate-stress")
 {
     await JobMemoryStress.RunAggregateAsync();

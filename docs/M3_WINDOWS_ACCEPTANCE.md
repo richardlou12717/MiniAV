@@ -92,3 +92,8 @@ The fixture attaches a parent to a **256 MiB Job limit** (both configured per-pr
 - **PASS (user-reported output):** `ClamAV Job Object aggregate memory stress passed (256 MiB Job limit; parent 112 MiB + descendant 160 MiB)`.
 - Evidence covers a controlled parent/descendant Job test with a detected allocation rejection. It does not independently measure actual committed memory or prove the real ClamAV 2 GiB limit under load. Test fixture synchronization and independent worker baselines can be strengthened further.
 - Next security gate: review launch-before-Job-assignment race and plan suspend-before-assignment implementation; no merge authorization.
+
+## Suspended process launch prototype (not production; pending Windows local test)
+- Opt-in test: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --suspended-launch-test`.
+- A harmless cmd.exe child is created with Win32 `CREATE_SUSPENDED`, assigned to `ClamJob`, confirmed in a Job, and only then resumed. Failure cleanup terminates and closes native handles. This is **only** a regression prototype; production `ClamProcessRunner` still uses `Process.Start` followed by `ClamJob.Attach` and thus retains the startup window.
+- Before replacing production launcher, design safe inherited anonymous pipes with explicit inherited-handle allowlist (`STARTUPINFOEX` preferred), argument quoting, lifetime management, cancellation, bounded stdout/stderr, timeout/kill, nested Jobs, and independently verify real ClamAV compatibility. Keep PR Draft.

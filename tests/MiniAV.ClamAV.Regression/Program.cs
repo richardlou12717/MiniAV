@@ -3,6 +3,21 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--job-aggregate-stress")
+{
+    await JobMemoryStress.RunAggregateAsync();
+    return;
+}
+if (args.Length > 0 && args[0] == "--job-aggregate-parent")
+{
+    await JobMemoryStress.AggregateParentAsync();
+    return;
+}
+if (args.Length > 0 && args[0] == "--job-aggregate-child")
+{
+    JobMemoryStress.AggregateChild();
+    return;
+}
 if (args.Length > 0 && args[0] == "--job-memory-stress")
 {
     await JobMemoryStress.RunAsync();

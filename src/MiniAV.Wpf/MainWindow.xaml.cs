@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text;
 using System.Windows;
 using MiniAV.Core;
 using MiniAV.Engines.Hash;
@@ -30,7 +29,7 @@ public partial class MainWindow : Window
 
         HashScanEngine engine;
         try { engine = HashScanEngine.Load(dbPath); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
         {
             MessageBox.Show(this, ex.Message, "Cannot load signature database", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
@@ -48,7 +47,6 @@ public partial class MainWindow : Window
         BusyBar.Visibility = Visibility.Visible;
         StatusText.Text = "Scanning...";
 
-        var pending = new StringBuilder();
         try
         {
             // Scanner callbacks run on a worker, and UI updates are marshalled to Dispatcher.
@@ -66,9 +64,7 @@ public partial class MainWindow : Window
                             ScanStatus.Skipped => "SKIPPED",
                             _ => "ERROR"
                         };
-                        pending.AppendLine($"{label} {result.Path} {result.Message}");
-                        ResultsBox.AppendText(pending.ToString());
-                        pending.Clear();
+                        ResultsBox.AppendText($"{label} {result.Path} {result.Message}{Environment.NewLine}");
                         ResultsBox.ScrollToEnd();
                     });
                 }, token));

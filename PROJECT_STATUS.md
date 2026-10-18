@@ -1,167 +1,60 @@
 # MiniAV — Project Status / Cross-session Handoff
 
 Last updated: 2026-10-17
-Status: M0, M1 and M2 complete. M2 PR #2 merged into main (merge commit 64e366996d19e4d2e02bd3540326c883b57f35e5).
+Status: **M0, M1, M2 complete and merged; M3 not started.**
 
-## Source of truth
-- Repository: https://github.com/richardlou12717/MiniAV (private)
-- Stable branch: `main`
-- M1 feature branch: `feature/m1-modular-scanner` (merged; do not use for new development)
-- PR: https://github.com/richardlou12717/MiniAV/pull/1
-- User's Windows working directory: `C:\Projects\MiniAV`
-- Always consult the latest repository contents before changing code.
+## Source of truth and branches
+- Private GitHub repository: https://github.com/richardlou12717/MiniAV
+- Stable branch: `main`. Current development milestone: M3 planning only.
+- M1: PR #1 merged on 2026-10-17 (`d9efa61bcb9de3d7c7889a9fb53157a5da083990`).
+- M2: PR #2 merged on 2026-10-17 (`64e366996d19e4d2e02bd3540326c883b57f35e5`).
+- M2 feature branch `feature/m2-scan-foundation` is historical; do not develop M3 on it.
+- User Windows working directory: `C:\Projects\MiniAV`.
+- GitHub files are authoritative; read them anew in each session.
 
-## Product scope
-- Windows x64, C# / .NET 10, local, on-demand read-only scanning.
-- CLI first, WPF later; optional independent ClamAV adapter later.
-- No file deletion, execution, quarantine or Defender replacement in this milestone.
-- Demo signatures only: `NO_MATCH` does not mean safe.
+## Product and safety scope
+- Windows x64; C# / .NET 10. Local, on-demand read-only scanning.
+- Two front ends: CLI and WPF. Core interfaces and Hash engine are separate projects.
+- SHA-256 signatures are harmless *demo-only*; `NO_MATCH` never means a file is safe.
+- No real malware signature coverage, no auto deletion, execution, moving, quarantine, Defender replacement, driver, or background telemetry.
+- No automatic file/path uploads or disk logs. Manual WPF log export is explicitly user initiated.
 
-## Completed on M1 feature branch
-- `src/MiniAV.Core/`: `IScanEngine`, `ScanRequest`, `ScanResult`, `ScanOutcome`, `ScanCoordinator`.
-- `src/MiniAV.Engines.Hash/`: asynchronous SHA-256 streaming and demo database loader.
-- CLI preserves existing `--path`, `--db`, output and exit code semantics.
-- `scripts/regression-test.ps1`: CLI positive/negative/missing path/invalid signature DB checks.
-- `.github/workflows/windows-ci.yml`: Windows build and regression runner.
-- Invalid SHA-256 database exception is now converted to CLI exit code 2 instead of a crash.
-- M1 merged to main on 2026-10-17 via PR #1 after local regression tests and two passing Windows CI checks.
+## Implemented (M0–M2)
+- `src/MiniAV.Core`: `IScanEngine`, `ScanCoordinator`, request/results/outcome, cancellation and fail-closed error reporting.
+- Limits: optional `MaxFiles`, actual streaming `MaxFileBytes` (with file-length preflight), optional overall `MaxScanDuration`. Timeout/limit errors are **incomplete scans**, not clean results.
+- `src/MiniAV.Engines.Hash`: async SHA-256 with demo JSON signatures.
+- `src/MiniAV.Cli`: `--path` and `--db`; exit 0=not matched without errors, 1=demo match, 2=input error, 3=scan incomplete/error, 130=user Ctrl+C.
+- `src/MiniAV.Wpf`: browse file/folder/database, optional resource limits, live counts, results, cancel/restart, explicit Save log.
+- UI results: batched 100ms / up to 400 results per update; bounded pending result queue (2,000), about 500,000 display characters. Older entries may be omitted; exported display log says `PARTIAL DISPLAY LOG` if truncated. Not a complete forensic/audit log.
+- `ScanCloseGate`: defers WPF window close while scan is running and requests cancellation; Core regression deterministically verifies worker-exit ordering. Native WPF Close event is not independently UI-automated.
+- No reparse-point traversal; report Error/Skipped distinctly from NoMatch.
 
-## User-verified results (2026-10-17)
-- Debug build of all three projects successful.
-- Release build of all three projects successful.
-- `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1` reported `Regression tests passed`.
-- Previous intermediate test failures uncovered and fixed stderr handling in PowerShell and uncaught `InvalidDataException`.
-- Windows Release build and extended regression tests (LF/CRLF signatures, junction skipping, invalid DB, missing target) passed locally after commit 2949d24.
-- User screenshot verified two GitHub Actions checks passed for M1 PR #1 prior to merge.
+## Verified and accepted (2026-10-17)
+- User Windows: Release Core/CLI builds, full `scripts/regression-test.ps1` including cancel, simulated read/access errors, MaxFiles, size/time, close lifecycle.
+- User Windows: Release WPF build; UI fixture scan, browse, counters, manual log export, all three limit fields and blank/unlimited behavior.
+- User Windows: large directory (more than 18,000 results), mid-scan cancellation, restart after cancel, bounded UI log/export behaviors.
+- GitHub Actions: two passing checks for final M2 PR head `976b96617c018152d2a26974a0e2f725f0e7c04d`; Windows pipeline includes CLI & WPF Release builds and Core/CLI regression.
+- M2 merged with explicit user authorization. No need to re-merge PR #2.
 
-## Latest Windows verification
-- User confirmed Release build, Core cancellation regression tests and full regression tests passed (2026-10-17). CLI Ctrl+C interaction itself remains untested manually.
+## Known limitations / deferred work
+- No actual antivirus detection coverage; no ClamAV implementation yet.
+- WPF displayed and saved logs are bounded, possibly partial. A full streaming report requires a separate design and explicit opt-in.
+- Native UI automation, real ACL-denied integration, and manual CLI Ctrl+C checks may be added later; not represented as completed.
+- File system can change while hashing; scan results are point-in-time. No quarantine or remediation.
+- No claim of production-grade security certification or full testing.
 
-## Latest verification of scan limits and errors
-- User confirmed Release build (1.9 seconds), Core cancellation regression tests, simulated I/O and access-denied tests, MaxFiles tests and full CLI regression tests all passed on Windows.
-- Real ACL-denied tests, interactive Ctrl+C and time/byte limits remain future validation and design work.
-
-## M2 in progress (first increment Windows verified)
-- New branch: feature/m2-scan-foundation.
-- Added optional MaxFileBytes preflight size check and Core regression tests; Windows Release build and full regression confirmed by user (3.3 seconds).
-- Scan limit currently checks FileInfo.Length before opening, not bytes actually read; cannot guarantee a hard cap on concurrently growing files.
-- WPF interface, progress, logs and UI cancel remain M2 deliverables.
-
-## M2 WPF scaffold (pending Windows verification)
-- Added src/MiniAV.Wpf with a read-only scan window, Start/Cancel, result log, indeterminate progress and processed-item count.
-- WPF project is not included in the CLI regression script; build and launch separately on Windows.
-- User verified Windows WPF build, launch and fixture scan: 1 MATCHED, 1 NO_MATCH, 0 errors, 2 processed, exit 1. Cancellation and longer-running scans remain unverified.
-
-## M2 WPF interaction increment (pending Windows verification)
-- Added file/folder/database browse dialogs, live per-status counts and Save log (manual export only).
-- No automatic log collection; report saving requires an explicit user action.
-- WPF compile and UI behaviors for this increment remain unverified; retain Draft PR #2.
-
-## M2 WPF interaction verification (2026-10-17)
-- User confirmed Browse controls, result counters, Save log, and 2-file fixture scan work on Windows.
-- Screenshot: Finished exit 1, processed 2, matched 1, no-match 1, skipped 0, errors 0.
-- Cancellation during an ongoing scan and restart behavior remain unverified.
-
-## M2 WPF cancellation/close lifecycle (pending Windows verification)
-- Commit 1c6ec30: cancelling a running scan now disables repeat Cancel requests and labels the scan incomplete.
-- Closing the WPF window during a scan requests cancellation; after the scan finishes or cancels, the pending window close automatically completes.
-- Cancelled scans append an explicit `CANCELLED — scan incomplete` report line; existing Start/Cancel and count behavior is preserved.
-- Windows WPF build, interactive cancellation and window-close tests are NOT yet verified for this increment.
-- Next: test cancellation during a long scan, close-while-scanning, and restart after cancellation; then address per-file byte/time budgets and scale/performance.
-
-## M2 interactive cancellation verification (2026-10-17)
-- User confirmed manual WPF cancellation during an ongoing scan succeeded on Windows.
-- Close-while-scanning and restart-after-cancellation remain separately unverified.
-
-## M2 streaming byte budget (pending Windows verification)
-- Core now passes `MaxFileBytes` to `IScanEngine.ScanFileAsync` instead of relying only on `FileInfo.Length` preflight.
-- SHA-256 engine hashes asynchronously in bounded chunks and reads at most one byte beyond the limit to identify files that have grown; over-budget files report `Error` instead of `NoMatch`.
-- Regression executable includes Hash engine boundary cases (exact size, size minus one, unbounded).
-- Changes are committed on feature/m2-scan-foundation; Windows compile and regression are NOT yet verified. No .NET SDK is available in the development container.
-- The WPF UI currently does not expose MaxFileBytes; next step includes considering user-facing limits and scan-time budgets.
-
-## Next work (M2)
-1. Verify WPF cancellation / closing behavior on Windows; leave PR #2 in Draft until verified.
-2. Design actual bytes-read and scan-time budgets; retain fail-closed incomplete-scan semantics.
-3. Consider real Windows ACL-denied and interactive CLI Ctrl+C tests.
-4. Review WPF per-file Dispatcher overhead before scaling to large directory trees.
+## Next milestone: M3 (not started)
+1. Read this status, `docs/02_ARCHITECTURE.md`, `docs/03_SECURITY_MODEL.md`, `docs/05_DECISIONS.md`, `docs/06_ENGINEERING.md` and latest related code.
+2. Create a new feature branch from latest `main`; leave `main` stable.
+3. Design optional independent-process ClamAV adapter: executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
+4. Review ClamAV licensing/distribution, signature source/authenticity, update/rollback and offline behavior before implementing updater.
+5. First develop deterministic fake-process tests with harmless fixtures, then implement adapter and run Windows CI/local checks; propose a new Draft PR.
+6. Keep feature optional and read-only; no silent Defender changes, download, quarantine or execution of scanned files.
 
 ## Collaboration
-- ChatGPT acts as architect/developer; user verifies on Windows.
-- Prefer feature branches and PRs, maintain stable `main`.
-- Never commit personal files, malware samples, secrets or quarantine content.
+- ChatGPT is project architect/developer; user runs Windows verification.
+- Use feature branches and PRs, document code changes and real test outcomes.
+- Never commit personal files, malware samples, secrets, private scan logs, or quarantine content.
 
 ## Next-session starter
-"Continue MiniAV in richardlou12717/MiniAV. Read PROJECT_STATUS.md on feature/m2-scan-foundation, then proceed with M2."
-
-## M2 validation and time budget (2026-10-17)
-- User confirmed Windows regression script and WPF Release build passed after streaming byte-budget changes.
-- Added optional MaxScanDuration to ScanRequest. It uses linked cancellation; exceeding the deadline yields an incomplete-scan Error and exit 3. Explicit user cancellation remains distinct.
-- Added Core regression tests for deadline expiry, user cancellation, and invalid duration.
-- New time-budget changes have NOT yet been Windows-verified. No UI or CLI duration argument yet.
-
-## M2 Windows verification and WPF limits UI (2026-10-17)
-- User confirmed Release CLI build, entire regression suite (including Core scan-time regression), and Release WPF build all passed.
-- Added optional WPF fields for Max files, Max file size (MiB), Max scan time (seconds), blank = unlimited.
-- WPF validates positive integer limits before scan, passes values to ScanRequest, disables input fields while scanning, and labels any scan with errors as incomplete.
-- WPF limits UI increment is pending Windows build and interactive verification; do not merge PR #2 yet.
-- Suggested test: Max files=1 on tests/fixtures -> exit 3 and limit error; Max file size=1 MiB on a file larger than 1 MiB -> exit 3; Max scan time=1 seconds on a large directory -> incomplete timeout; blank fields -> existing successful scan.
-
-## M2 WPF limits UI verification (2026-10-17)
-- User confirmed WPF Max files=1 on two-file fixtures reports limit exceeded and incomplete scan (exit 3).
-- User confirmed clearing all limit fields restores the original fixture scan behavior (one match, one no-match, exit 1).
-- File size and scan duration UI behavior still require separate interactive verification before M2 merge.
-
-## M2 WPF additional limits verified (2026-10-17)
-- User confirmed WPF max file size and max scan duration interactive tests both succeeded on Windows.
-- All three WPF limit settings have now received user validation, including previous max files and blank/unlimited cases.
-- Remaining M2 work: performance review (per-result synchronous Dispatcher.Invoke and repeated UI append/scroll), closing while scanning and restart after cancellation, end-to-end CI and PR review.
-
-## M2 WPF batch rendering (pending Windows verification)
-- Replaced per-file synchronous Dispatcher.Invoke with ConcurrentQueue callbacks and 100ms DispatcherTimer batch rendering (up to 400 results per tick).
-- Flushes remaining results before final summary, cancellation message, or error message, retaining log ordering and totals.
-- This change has NOT yet been built or tested on Windows. Test release WPF build, large-directory responsiveness, cancellation, restart, and saved-log completeness.
-- Current result queue and WPF TextBox log remain memory-growing for very large scans; future bounded channel or file-backed reporting may be needed.
-
-## M2 WPF lifecycle user verification (2026-10-17)
-- User verified successful restart and fixture scan after cancelling a large-directory scan.
-- On clicking window X during scanning the window appeared to close promptly; this is a manual observation only, not proof the background scan exited before closure.
-- Before M2 merge, automate close-while-scanning lifecycle verification using a controlled engine; keep this as pending, not passed.
-- Large-directory cancellation earlier showed 18,612 processed results and an explicit incomplete-scan status.
-
-## M2 final acceptance CI enhancement (2026-10-17)
-- Confirmed PR #2 remains open; GitHub Actions Windows CI previously passed for commit 4946dbe, but only covered CLI build and regression.
-- CI now also builds src/MiniAV.Wpf/MiniAV.Wpf.csproj in Release on windows-latest (commit e5de708).
-- Updated workflow awaits a new GitHub Actions pass; do not treat the previous successful run as validation of the new workflow.
-- Before merge: verify new CI run succeeds, implement a deterministic close-waits-for-scan lifecycle test, and address unbounded scan log memory or document an explicit M2 cap.
-
-## M2 bounded WPF result display (pending Windows validation)
-- GitHub Actions Windows CI including WPF Release build passed for preceding commit 898f2d4.
-- WPF now uses a bounded 2,000-result BlockingCollection with cancellation-aware producer backpressure instead of an unbounded queue.
-- Visible TextBox log capped at approximately 500,000 characters (and batches truncated if oversized); earlier display entries are omitted when cap is exceeded. Summary counters remain full.
-- Manual Save log explicitly prefixes PARTIAL DISPLAY LOG when entries were dropped; this is not a full forensic report. There is no automatic persistent log.
-- Changes require Windows WPF compile and large-directory cancel/restart/export verification; latest CI status needs rechecking after commits.
-- Deterministic close-waits-for-worker test still pending; do not merge PR #2 yet.
-
-## M2 bounded log Windows verification (2026-10-17)
-- User confirmed large-directory scan with bounded result queue and display log, cancellation, and report export worked on Windows.
-- The on-screen log and manually exported log are intentionally partial once display retention is exceeded; aggregate counters remain complete.
-- Pending final deterministic close lifecycle regression and CI validation of that regression.
-
-## M2 deterministic close gate (pending Windows validation)
-- Added production ScanCloseGate in Core; WPF now uses it to defer window closing until its active scan returns, with cancellation requested immediately.
-- Added deterministic Core regression using a controlled worker to verify close is deferred while active and released only after worker exit.
-- This verifies shared production lifecycle gate and simulated worker ordering, not a full UI automation of the native WPF Close event.
-- Code and regression need Windows CI and local verification; keep PR #2 draft pending new green checks.
-
-## M2 final verification (2026-10-17)
-- User verified Windows full Core/CLI regression including deterministic window-close lifecycle test, and WPF Release build. Both succeeded.
-- GitHub Actions latest two runs on head 2137c90 succeeded; PR #2 was draft/open and mergeable without conflicts at review time.
-- M2 ready for merge review; do not merge without user's explicit confirmation. Current scanner remains demo-signature-only, read-only and not a replacement for Defender.
-
-## M2 merged and M3 handoff (2026-10-17)
-- PR #2 successfully merged to main with merge commit 64e366996d19e4d2e02bd3540326c883b57f35e5.
-- Two Windows CI checks for the final M2 PR head (976b966) passed before merge; local Windows CLI/Core regression and WPF Release build also passed.
-- M2 includes WPF, read-only hash scanning, bounded display logging, cancellation, file count/byte/time limits, and deterministic close-gate regression.
-- Next stage M3: design optional ClamAV process adapter and signature update policy; review licensing, distribution, sandboxing, safe process arguments, error and timeout semantics before implementation.
-- M3 should start on a new feature branch from current main. Do not modify stable main directly for features.
+"继续 MiniAV 项目。GitHub 仓库 richardlou12717/MiniAV；请先读取 main 的 PROJECT_STATUS.md，再读取必要架构文档与代码，从 M3 的 ClamAV 独立进程适配器方案开始。"

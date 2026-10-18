@@ -111,3 +111,11 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 ## Real ClamAV Windows 5.1 smoke-script repair (2026-10-18)
 - User confirmed official ClamAV 1.5.4 and database version 28157 installed; invoked `scripts/clamav-local-smoke.ps1` from Windows PowerShell 5.1 and hit `Path.IsPathFullyQualified` missing (script failed before scan).
 - Replaced unsupported API with PS5.1-compatible fully qualified path checks, and added a Windows PowerShell 5.1 parse check to regression runner. Latest CI pending; real ClamAV scan still not yet confirmed.
+
+## M3 real ClamAV integration milestone (2026-10-18)
+- User's Windows machine: ClamAV 1.5.4, signature database 28157 (reported by `clamscan.exe --version`), with separately installed official signatures.
+- After fixing PowerShell 5.1 compatibility, user ran `scripts/clamav-local-smoke.ps1 -ClamScanExe "C:\Program Files\ClamAV\clamscan.exe"`.
+- **Observed PASS:** `NO_MATCH` on a harmless temporary text fixture with spaces in its path; `SUMMARY Matched=0 NoMatch=1 Skipped=0 Errors=0`, process exit 0, script reported real ClamAV smoke success.
+- GitHub CI: both checks for `2fa8d84c` passed.
+- This confirms one real, installed ClamAV clean-file execution path, **not** detection of a safe test signature, malware coverage, internal limit handling under pressure, complete scan attestations, memory exhaustion behavior, or WPF real-engine UI acceptance. SignatureVersion output remains explicitly unverified; do not claim full production readiness.
+- Next: add safe EICAR *test string* detection scenario only with user approval/controlled test setup (may trigger Defender), inspect real ClamAV output parsing, WPF manual UI validation, and Job resource stress tests. PR #3 stays Draft.

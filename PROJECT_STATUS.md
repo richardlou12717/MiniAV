@@ -102,3 +102,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - Latest head `f4c7fca2` passed both Windows CI runs, including Job membership/kill-on-close regression.
 - Added `scripts/clamav-local-smoke.ps1` as **manual opt-in only** for a user-installed real ClamAV executable and optional signature folder. It tests a harmless, temporary text file and requires a clean result; it does not download binaries or run in CI.
 - Real ClamAV interoperability is still unverified until user executes this script and shares its result. Other open gates: memory exhaustion enforcement, pre-Job process startup race, signature/database provenance and ClamAV-specific partial-coverage behavior.
+
+## M3 mutation detection (2026-10-18)
+- Baseline head `acd42fa9` passed both Windows CI runs.
+- Added best-effort post-scan target file metadata comparison (length and modification timestamp). Detectable concurrent changes now return Error/incomplete, not NoMatch, and a deterministic fake-runner mutation regression is included. Latest CI pending.
+- Metadata equality does not prove file identity/content stability. Atomic snapshot or stream-based scan semantics, memory stress limits, real ClamAV interoperability and manual UI verification remain open.

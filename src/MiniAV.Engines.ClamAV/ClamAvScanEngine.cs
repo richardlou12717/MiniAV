@@ -145,8 +145,13 @@ public sealed class ClamProcessRunner : IClamProcessRunner
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout);
         // Both pipes are drained concurrently to avoid a blocked child.
-        var stdout = ReadBoundedAsync(process.StandardOutput, deadline.Token);
-        var stderr = ReadBoundedAsync(process.StandardError, deadline.Token);
+        void StopOnOverflow()
+        {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) { }
+        }
+        var stdout = ReadBoundedAsync(process.StandardOutput, deadline.Token, StopOnOverflow);
+        var stderr = ReadBoundedAsync(process.StandardError, deadline.Token, StopOnOverflow);
         try
         {
             // Watch readers and child together: an overflowing pipe must abort the child.
@@ -172,7 +177,7 @@ public sealed class ClamProcessRunner : IClamProcessRunner
         }
     }
 
-    private static async Task<string> ReadBoundedAsync(StreamReader reader, CancellationToken cancellationToken)
+    private static async Task<string> ReadBoundedAsync(StreamReader reader, CancellationToken cancellationToken, Action stopOnOverflow)
     {
         var buffer = new char[1024];
         var output = new StringBuilder();
@@ -181,7 +186,10 @@ public sealed class ClamProcessRunner : IClamProcessRunner
             int read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken);
             if (read == 0) return output.ToString();
             if (output.Length + read > MaxCapturedCharacters)
+            {
+                stopOnOverflow(); // kill immediately: otherwise the child may block on the full pipe
                 throw new ProcessOutputLimitException();
+            }
             output.Append(buffer, 0, read);
         }
     }

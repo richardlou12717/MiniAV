@@ -128,3 +128,9 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - On clicking window X during scanning the window appeared to close promptly; this is a manual observation only, not proof the background scan exited before closure.
 - Before M2 merge, automate close-while-scanning lifecycle verification using a controlled engine; keep this as pending, not passed.
 - Large-directory cancellation earlier showed 18,612 processed results and an explicit incomplete-scan status.
+
+## M2 final acceptance CI enhancement (2026-10-17)
+- Confirmed PR #2 remains open; GitHub Actions Windows CI previously passed for commit 4946dbe, but only covered CLI build and regression.
+- CI now also builds src/MiniAV.Wpf/MiniAV.Wpf.csproj in Release on windows-latest (commit e5de708).
+- Updated workflow awaits a new GitHub Actions pass; do not treat the previous successful run as validation of the new workflow.
+- Before merge: verify new CI run succeeds, implement a deterministic close-waits-for-scan lifecycle test, and address unbounded scan log memory or document an explicit M2 cap.

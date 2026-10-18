@@ -7,6 +7,9 @@ try {
     dotnet run --project .\tests\MiniAV.Core.Regression\MiniAV.Core.Regression.csproj --configuration Release
     if ($LASTEXITCODE -ne 0) { throw 'Core cancellation regression tests failed' }
 
+    dotnet run --project .\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj --configuration Release
+    if ($LASTEXITCODE -ne 0) { throw 'ClamAV adapter regression tests failed' }
+
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('miniav-test-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null
     try {

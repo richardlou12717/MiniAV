@@ -153,3 +153,8 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Added deterministic Core regression using a controlled worker to verify close is deferred while active and released only after worker exit.
 - This verifies shared production lifecycle gate and simulated worker ordering, not a full UI automation of the native WPF Close event.
 - Code and regression need Windows CI and local verification; keep PR #2 draft pending new green checks.
+
+## M2 final verification (2026-10-17)
+- User verified Windows full Core/CLI regression including deterministic window-close lifecycle test, and WPF Release build. Both succeeded.
+- GitHub Actions latest two runs on head 2137c90 succeeded; PR #2 was draft/open and mergeable without conflicts at review time.
+- M2 ready for merge review; do not merge without user's explicit confirmation. Current scanner remains demo-signature-only, read-only and not a replacement for Defender.

@@ -122,3 +122,9 @@ Status: M0 and M1 complete; M2 foundation started on feature/m2-scan-foundation.
 - Flushes remaining results before final summary, cancellation message, or error message, retaining log ordering and totals.
 - This change has NOT yet been built or tested on Windows. Test release WPF build, large-directory responsiveness, cancellation, restart, and saved-log completeness.
 - Current result queue and WPF TextBox log remain memory-growing for very large scans; future bounded channel or file-backed reporting may be needed.
+
+## M2 WPF lifecycle user verification (2026-10-17)
+- User verified successful restart and fixture scan after cancelling a large-directory scan.
+- On clicking window X during scanning the window appeared to close promptly; this is a manual observation only, not proof the background scan exited before closure.
+- Before M2 merge, automate close-while-scanning lifecycle verification using a controlled engine; keep this as pending, not passed.
+- Large-directory cancellation earlier showed 18,612 processed results and an explicit incomplete-scan status.

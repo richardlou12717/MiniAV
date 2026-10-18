@@ -12,7 +12,7 @@ public sealed record ScanOutcome(int Matched, int NoMatch, int Skipped, int Erro
 public interface IScanEngine
 {
     string SignatureVersion { get; }
-    ValueTask<ScanResult> ScanFileAsync(string file, CancellationToken cancellationToken = default);
+    ValueTask<ScanResult> ScanFileAsync(string file, long? maxFileBytes = null, CancellationToken cancellationToken = default);
 }
 
 public sealed class ScanCoordinator(IScanEngine engine)
@@ -63,7 +63,7 @@ public sealed class ScanCoordinator(IScanEngine engine)
                         return;
                     }
                     filesStarted++;
-                    var result = await engine.ScanFileAsync(path, cancellationToken);
+                    var result = await engine.ScanFileAsync(path, request.MaxFileBytes, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     Emit(result);
                 }

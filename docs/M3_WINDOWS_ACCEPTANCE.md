@@ -86,3 +86,9 @@ Run after checking CI:
 dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj --configuration Release -- --job-aggregate-stress
 ```
 The fixture attaches a parent to a **256 MiB Job limit** (both configured per-process and aggregate). The parent holds **112 MiB** in touched allocations and spawns a descendant, which attempts **160 MiB**. Each worker requests less than the per-process budget, while their combined target exceeds the Job budget. The test is opt-in and includes a 40-second parent timeout and cleanup. Treat PASS as an observed aggregate-limit rejection in this setup, not proof against all Windows policy/launch races or of exact committed-memory accounting. Does not run ClamAV or change the production 2 GiB cap.
+
+### User Windows aggregate memory test result — 2026-10-18
+- User executed `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj --configuration Release -- --job-aggregate-stress`.
+- **PASS (user-reported output):** `ClamAV Job Object aggregate memory stress passed (256 MiB Job limit; parent 112 MiB + descendant 160 MiB)`.
+- Evidence covers a controlled parent/descendant Job test with a detected allocation rejection. It does not independently measure actual committed memory or prove the real ClamAV 2 GiB limit under load. Test fixture synchronization and independent worker baselines can be strengthened further.
+- Next security gate: review launch-before-Job-assignment race and plan suspend-before-assignment implementation; no merge authorization.

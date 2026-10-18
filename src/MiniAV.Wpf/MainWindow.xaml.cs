@@ -1,4 +1,7 @@
 using System.IO;
+using System.Collections.Concurrent;
+using System.Text;
+using System.Windows.Threading;
 using System.Windows;
 using Microsoft.Win32;
 using MiniAV.Core;
@@ -11,6 +14,50 @@ public partial class MainWindow : Window
     private CancellationTokenSource? scanCancellation;
     private bool closeAfterCancellation;
     private int processed, matched, noMatch, skipped, errors;
+    private readonly ConcurrentQueue<ScanResult> pendingResults = new();
+    private readonly DispatcherTimer refreshTimer;
+    private const int RefreshBatchSize = 400;
+
+    private void FlushPendingResults()
+    {
+        var text = new StringBuilder();
+        int count = 0;
+        while (count < RefreshBatchSize && pendingResults.TryDequeue(out var result))
+        {
+            count++;
+            processed++;
+            switch (result.Status)
+            {
+                case ScanStatus.Matched: matched++; break;
+                case ScanStatus.NoMatch: noMatch++; break;
+                case ScanStatus.Skipped: skipped++; break;
+                default: errors++; break;
+            }
+            var label = result.Status switch
+            {
+                ScanStatus.Matched => $"MATCHED [{result.SignatureId}]",
+                ScanStatus.NoMatch => "NO_MATCH",
+                ScanStatus.Skipped => "SKIPPED",
+                _ => "ERROR"
+            };
+            text.Append(label).Append(' ').Append(result.Path).Append(' ')
+                .Append(result.Message).AppendLine();
+        }
+        if (count == 0) return;
+        ResultsBox.AppendText(text.ToString());
+        ResultsBox.ScrollToEnd();
+        UpdateCounts();
+    }
+
+    private async Task FlushAllPendingAsync()
+    {
+        while (!pendingResults.IsEmpty)
+        {
+            FlushPendingResults();
+            await Dispatcher.Yield(DispatcherPriority.Background);
+        }
+    }
+
 
     private void UpdateCounts() => CountText.Text = $"Processed: {processed} | Matched: {matched} | No match: {noMatch} | Skipped: {skipped} | Errors: {errors}";
 
@@ -46,6 +93,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        refreshTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        refreshTimer.Tick += (_, _) => FlushPendingResults();
         TargetBox.Text = Path.Combine(Environment.CurrentDirectory, "tests", "fixtures");
         DatabaseBox.Text = Path.Combine(Environment.CurrentDirectory, "signatures", "demo-hashes.json");
     }
@@ -101,7 +153,9 @@ public partial class MainWindow : Window
         var token = scanCancellation.Token;
         processed = matched = noMatch = skipped = errors = 0;
         UpdateCounts();
+        while (pendingResults.TryDequeue(out _)) { }
         ResultsBox.Clear();
+        refreshTimer.Start();
         SaveLogButton.IsEnabled = false;
         StartButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
@@ -114,32 +168,11 @@ public partial class MainWindow : Window
 
         try
         {
-            // Scanner callbacks run on a worker, and UI updates are marshalled to Dispatcher.
+            // Worker enqueues results without waiting for the UI; a timer batches rendering.
             var outcome = await Task.Run(() => new ScanCoordinator(engine).ScanAsync(
-                request, result =>
-                {
-                    Dispatcher.Invoke(() =>
-                    {
-                        processed++;
-                        switch (result.Status)
-                        {
-                            case ScanStatus.Matched: matched++; break;
-                            case ScanStatus.NoMatch: noMatch++; break;
-                            case ScanStatus.Skipped: skipped++; break;
-                            default: errors++; break;
-                        }
-                        UpdateCounts();
-                        var label = result.Status switch
-                        {
-                            ScanStatus.Matched => $"MATCHED [{result.SignatureId}]",
-                            ScanStatus.NoMatch => "NO_MATCH",
-                            ScanStatus.Skipped => "SKIPPED",
-                            _ => "ERROR"
-                        };
-                        ResultsBox.AppendText($"{label} {result.Path} {result.Message}{Environment.NewLine}");
-                        ResultsBox.ScrollToEnd();
-                    });
-                }, token));
+                request, pendingResults.Enqueue, token));
+            refreshTimer.Stop();
+            await FlushAllPendingAsync();
             StatusText.Text = outcome.Errors > 0 || outcome.EngineUnavailable > 0
                 ? $"Finished with errors — scan incomplete (exit {outcome.ExitCode})"
                 : $"Finished (exit {outcome.ExitCode})";
@@ -147,16 +180,21 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+            refreshTimer.Stop();
+            await FlushAllPendingAsync();
             StatusText.Text = "Cancelled — incomplete scan";
             ResultsBox.AppendText($"CANCELLED — scan incomplete{Environment.NewLine}");
         }
         catch (Exception ex)
         {
+            refreshTimer.Stop();
+            await FlushAllPendingAsync();
             StatusText.Text = "Scan failed — incomplete scan";
             ResultsBox.AppendText($"ERROR {ex.Message}{Environment.NewLine}");
         }
         finally
         {
+            refreshTimer.Stop();
             BusyBar.Visibility = Visibility.Collapsed;
             StartButton.IsEnabled = true;
             CancelButton.IsEnabled = false;

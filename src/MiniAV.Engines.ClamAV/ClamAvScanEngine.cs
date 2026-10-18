@@ -37,7 +37,7 @@ public sealed class ClamAvScanEngine : IScanEngine
         try
         {
             var path = Path.GetFullPath(file);
-            if (path.Contains('\r') || path.Contains('\n'))
+            if (path.Any(char.IsControl))
                 return new(path, ScanStatus.Error, Message: "File path has unsupported control characters.");
             if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
                 return new(path, ScanStatus.Skipped, Message: "reparse point");
@@ -77,7 +77,7 @@ public sealed class ClamAvScanEngine : IScanEngine
             return Parse(path, execution);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
             return new(file, ScanStatus.Error, Message: e.Message);
         }
@@ -95,7 +95,7 @@ public sealed class ClamAvScanEngine : IScanEngine
         {
             var prefix = path + ": ";
             var line = lines[0];
-            if (line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) &&
+            if (line.StartsWith(prefix, StringComparison.Ordinal) &&
                 line.EndsWith(" FOUND", StringComparison.Ordinal))
             {
                 var name = line.Substring(prefix.Length, line.Length - prefix.Length - " FOUND".Length);
@@ -149,6 +149,7 @@ public sealed class ClamProcessRunner : IClamProcessRunner
         {
             try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
             catch (InvalidOperationException) { }
+            catch (Win32Exception) { }
         }
         var stdout = ReadBoundedAsync(process.StandardOutput, deadline.Token, StopOnOverflow);
         var stderr = ReadBoundedAsync(process.StandardError, deadline.Token, StopOnOverflow);
@@ -168,6 +169,7 @@ public sealed class ClamProcessRunner : IClamProcessRunner
             {
                 try { process.Kill(entireProcessTree: true); }
                 catch (InvalidOperationException) { } // exited concurrently
+                catch (Win32Exception) { } // child already exited or inaccessible
                 await process.WaitForExitAsync(CancellationToken.None);
             }
             // Never turn a primary reader/timeout exception into a clean result.

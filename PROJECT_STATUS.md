@@ -70,3 +70,8 @@ Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committe
 - WPF now has a Hash default / optional ClamAV selector, executable picker and optional database folder picker. Both front ends use the existing ScanCoordinator. WPF scan cancellation/close lifecycle still uses prior gate.
 - All code is feature-branch only, Draft PR #3. Windows CI already passed earlier adapter/CLI and child-process lifecycle tests; **the WPF integration commit has not yet been verified**, nor has actual installed ClamAV compatibility.
 - Next: validate latest Windows CI, test actual WPF UI interactions locally (select/reset, missing engine, cancel/close/restart, report labels), then assess ClamAV internal scan limits and release-grade memory/CPU caps. Keep `main` stable.
+
+## M3 safety hardening follow-up
+- Latest WPF implementation head `cab21b56` passed two Windows CI runs (2026-10-17 local / 2026-10-18 UTC). No real ClamAV execution yet.
+- ClamAV command now supplies `--alert-exceeds-max=yes` and maps `Heuristics.Limits.Exceeded` detections to `Error` (incomplete), not malware or NoMatch. Source: official clamscan man page. Regression added; latest CI pending.
+- Limit alerts cover certain internal scan limits only; not proof that every archive member was inspected. Real-engine interoperability, further scan-limit behavior, resources and Windows UI manual checks remain release gates.

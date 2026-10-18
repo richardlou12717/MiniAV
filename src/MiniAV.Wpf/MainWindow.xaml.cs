@@ -14,7 +14,9 @@ public partial class MainWindow : Window
     private CancellationTokenSource? scanCancellation;
     private bool closeAfterCancellation;
     private int processed, matched, noMatch, skipped, errors;
-    private readonly ConcurrentQueue<ScanResult> pendingResults = new();
+    private readonly BlockingCollection<ScanResult> pendingResults = new(new ConcurrentQueue<ScanResult>(), 2000);
+    private bool logTruncated;
+    private const int MaxDisplayCharacters = 500_000;
     private readonly DispatcherTimer refreshTimer;
     private const int RefreshBatchSize = 400;
 
@@ -22,7 +24,7 @@ public partial class MainWindow : Window
     {
         var text = new StringBuilder();
         int count = 0;
-        while (count < RefreshBatchSize && pendingResults.TryDequeue(out var result))
+        while (count < RefreshBatchSize && pendingResults.TryTake(out var result))
         {
             count++;
             processed++;
@@ -44,6 +46,12 @@ public partial class MainWindow : Window
                 .Append(result.Message).AppendLine();
         }
         if (count == 0) return;
+        if (ResultsBox.Text.Length + text.Length > MaxDisplayCharacters)
+        {
+            logTruncated = true;
+            ResultsBox.Clear();
+            ResultsBox.AppendText("[Earlier scan details omitted from display due to memory limit]" + Environment.NewLine);
+        }
         ResultsBox.AppendText(text.ToString());
         ResultsBox.ScrollToEnd();
         UpdateCounts();
@@ -51,7 +59,7 @@ public partial class MainWindow : Window
 
     private async Task FlushAllPendingAsync()
     {
-        while (!pendingResults.IsEmpty)
+        while (pendingResults.Count > 0)
         {
             FlushPendingResults();
             await Dispatcher.Yield(DispatcherPriority.Background);
@@ -83,7 +91,13 @@ public partial class MainWindow : Window
     {
         var dialog = new SaveFileDialog { Title = "Save MiniAV scan report", Filter = "Text logs (*.txt)|*.txt", FileName = "MiniAV-scan-report.txt" };
         if (dialog.ShowDialog(this) != true) return;
-        try { File.WriteAllText(dialog.FileName, ResultsBox.Text); }
+        try
+        {
+            var header = logTruncated
+                ? "PARTIAL DISPLAY LOG - earlier results omitted. Not a complete scan report." + Environment.NewLine
+                : "";
+            File.WriteAllText(dialog.FileName, header + ResultsBox.Text);
+        }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             MessageBox.Show(this, ex.Message, "Cannot save report", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -153,7 +167,8 @@ public partial class MainWindow : Window
         var token = scanCancellation.Token;
         processed = matched = noMatch = skipped = errors = 0;
         UpdateCounts();
-        while (pendingResults.TryDequeue(out _)) { }
+        while (pendingResults.TryTake(out _)) { }
+        logTruncated = false;
         ResultsBox.Clear();
         refreshTimer.Start();
         SaveLogButton.IsEnabled = false;
@@ -170,7 +185,7 @@ public partial class MainWindow : Window
         {
             // Worker enqueues results without waiting for the UI; a timer batches rendering.
             var outcome = await Task.Run(() => new ScanCoordinator(engine).ScanAsync(
-                request, pendingResults.Enqueue, token));
+                request, result => pendingResults.Add(result, token), token));
             refreshTimer.Stop();
             await FlushAllPendingAsync();
             StatusText.Text = outcome.Errors > 0 || outcome.EngineUnavailable > 0

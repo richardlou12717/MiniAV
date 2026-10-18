@@ -22,10 +22,13 @@ try
     Require((await engine.ScanFileAsync(file)).Status == ScanStatus.NoMatch, "clean");
     Require(fake.Arguments?.Last() == file, "path is a single argument");
     Require(fake.Arguments?.Contains("--infected") == true, "no remediation flag");
+    Require(fake.Arguments?.Contains("--alert-exceeds-max=yes") == true, "detect internal limit exclusions");
     Require(fake.Arguments?.Any(x => x.Contains("remove", StringComparison.OrdinalIgnoreCase)) != true, "no delete");
     fake.Next = new(1, file + ": Test.Signature FOUND\n", "");
     var hit = await engine.ScanFileAsync(file);
     Require(hit.Status == ScanStatus.Matched && hit.SignatureId == "Test.Signature", "matched and signature");
+    fake.Next = new(1, file + ": Heuristics.Limits.Exceeded FOUND\n", "");
+    Require((await engine.ScanFileAsync(file)).Status == ScanStatus.Error, "internal size/recursion limit cannot count as malware or clean");
     fake.Next = new(1, "", "");
     Require((await engine.ScanFileAsync(file)).Status == ScanStatus.Error, "missing detection text");
     fake.Next = new(1, "OTHER: Test FOUND\n", "");

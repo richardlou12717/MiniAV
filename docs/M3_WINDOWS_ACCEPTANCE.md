@@ -64,3 +64,12 @@ Omit `-DatabaseDirectory` to use ClamAV's default configuration. This script sca
 - Verify both configured per-process and aggregate Job committed-memory limits, a failure/non-clean result on exceeded budget, cleanup on cancellation/timeout, and a descendant process if applicable.
 - Guard against flaky CI, test nested Job policy, and clearly separate *configured limits*, *observed enforcement*, and *unsupported guarantees*. No hard CPU cap or launch-suspended guarantee exists.
 - Maintain PR #3 as Draft until resource testing and remaining security gates are reviewed.
+
+### Opt-in bounded Job memory pressure test (not yet executed)
+After Windows CI validates compilation and the standard regression suite, run on Windows:
+
+```powershell
+dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj --configuration Release -- --job-memory-stress
+```
+
+The test launches a harmless .NET child, waits for a READY handshake, attaches a Windows Job Object with a **192 MiB test-only committed-memory limit**, then asks the child to touch up to **256 MiB** of pinned memory. A nonzero exit without `TARGET_REACHED` is reported as a limit-rejection observation. The fixture has a 30-second timeout and kills its child in a finally block. It does not alter the adapter's production **2 GiB** setting, run ClamAV, download signatures, or scan personal files. Do not interpret this test as proof of exact memory accounting, aggregate descendant limits, or closure of the production startup-before-Job-attachment race. Failures may reflect environment constraints and should be diagnosed rather than bypassed.

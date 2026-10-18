@@ -50,3 +50,17 @@ Once ClamAV and its signatures have been installed and verified by the user, run
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\clamav-local-smoke.ps1 -ClamScanExe "C:\Path\To\clamscan.exe" -DatabaseDirectory "C:\Path\To\database"
 ```
 Omit `-DatabaseDirectory` to use ClamAV's default configuration. This script scans only an automatically created harmless text file, reports errors honestly and cleans up temporary fixtures. It never installs/updates ClamAV, changes Defender, or scans arbitrary personal files. A single clean smoke does not establish scanning completeness or malware coverage.
+
+## User-reported WPF acceptance — 2026-10-18
+- Environment: Windows, separately installed ClamAV 1.5.4 and database version 28157 (version reported by user; not attested by MiniAV).
+- Missing executable (manually entered): scanned the two harmless `tests/fixtures` files; WPF displayed `Finished with errors — scan incomplete (exit 3)`, `Processed: 2`, `Errors: 2`, `No match: 0`, with `ClamAV executable not found.` on each line. **PASS**, screenshot observed.
+- Real ClamAV WPF path `C:\\Program Files\\ClamAV\\clamscan.exe`, optional database directory blank: `Finished (exit 0)`; `Matched=0 NoMatch=2 Skipped=0 Errors=0` on two harmless fixtures. **PASS**, screenshot observed.
+- User subsequently reports **PASS** for Hash/ClamAV control switching, scan cancellation, restart after cancellation, close-during-scan behavior/process cleanup, and manual Save Log. These items are user-reported manual acceptance, not independent process traces or native UI automation.
+- The selected executable picker only chooses existing `clamscan.exe` entries; invalid-executable test used the editable textbox instead. This is expected.
+- Do **not** infer verified detection effectiveness, archive completeness, precise signature freshness, the 2 GiB memory ceiling under actual pressure, or absence of all descendant processes from these WPF results.
+
+## Next controlled resource-verification gate
+- First inspect current Job limits with a dedicated **harmless test worker** and a deliberately low **test-only** memory cap; do not exhaust the machine's memory or force real ClamAV to allocate 2 GiB.
+- Verify both configured per-process and aggregate Job committed-memory limits, a failure/non-clean result on exceeded budget, cleanup on cancellation/timeout, and a descendant process if applicable.
+- Guard against flaky CI, test nested Job policy, and clearly separate *configured limits*, *observed enforcement*, and *unsupported guarantees*. No hard CPU cap or launch-suspended guarantee exists.
+- Maintain PR #3 as Draft until resource testing and remaining security gates are reviewed.

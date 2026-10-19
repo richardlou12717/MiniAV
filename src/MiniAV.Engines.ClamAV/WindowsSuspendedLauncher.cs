@@ -157,17 +157,24 @@ internal static class WindowsSuspendedLauncher
                 job?.Dispose(); // Kill all Job members before checking process exit.
                 if (native.ProcessHandle != IntPtr.Zero)
                 {
-                    var wait = WaitForSingleObject(native.ProcessHandle, 0);
+                    // Job close triggers process-tree termination asynchronously.
+                    // Let it complete before attempting TerminateProcess: a process
+                    // already terminating can reject that call with ACCESS_DENIED.
+                    var wait = WaitForSingleObject(native.ProcessHandle, 5000);
                     if (wait == WaitTimeout)
                     {
                         if (!TerminateProcess(native.ProcessHandle, 91))
                         {
                             var error = Marshal.GetLastWin32Error();
-                            // The child can exit between the wait and termination call.
-                            if (WaitForSingleObject(native.ProcessHandle, 0) != WaitObject0)
-                                throw new Win32Exception(error, "Native child termination failed.");
+                            // A concurrent exit is harmless only when confirmed signaled.
+                            wait = WaitForSingleObject(native.ProcessHandle, 1000);
+                            if (wait != WaitObject0)
+                                throw new Win32Exception(error, "Native child termination failed and exit was not confirmed.");
                         }
-                        wait = WaitForSingleObject(native.ProcessHandle, 5000);
+                        else
+                        {
+                            wait = WaitForSingleObject(native.ProcessHandle, 5000);
+                        }
                     }
                     if (wait != WaitObject0)
                         throw wait == WaitFailed

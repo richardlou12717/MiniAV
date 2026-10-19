@@ -84,36 +84,64 @@ internal static class WindowsSuspendedLauncher
             stdout.Child.Dispose();
             stderr.Child.Dispose();
             stdin.Parent.Dispose();
-            using var stdoutStream = new FileStream(stdout.Parent, FileAccess.Read, 4096, isAsync: false);
-            using var stderrStream = new FileStream(stderr.Parent, FileAccess.Read, 4096, isAsync: false);
+            using var stdoutStream = new FileStream(stdout.Parent, FileAccess.Read, 4096, isAsync: true);
+            using var stderrStream = new FileStream(stderr.Parent, FileAccess.Read, 4096, isAsync: true);
             using var outReader = new StreamReader(stdoutStream, Encoding.UTF8, true);
             using var errReader = new StreamReader(stderrStream, Encoding.UTF8, true);
-            // Drain both streams concurrently; never use unbounded ReadToEndAsync.
-            var outTask = ReadBoundedAsync(outReader, maxCharsPerStream, token);
-            var errTask = ReadBoundedAsync(errReader, maxCharsPerStream, token);
-            var waitTask = child.WaitForExitAsync(token);
-            // Do not use Task.WhenAll as the first await: on overflowing output, another
-            // synchronous-backed pipe read can remain blocked until Job termination.
-            // Observe each completion and return to finally immediately on any failure.
-            var pending = new List<Task> { outTask, errTask, waitTask };
-            // An infinite Task.Delay(token) can retain its cancellation registration after
-            // successful completion of the child; use an explicitly disposed registration.
-            var cancellationSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            using var cancellationRegistration = token.Register(
-                static state => ((TaskCompletionSource)state!).TrySetResult(), cancellationSignal);
-            while (pending.Count != 0)
+            using var readStop = CancellationTokenSource.CreateLinkedTokenSource(token);
+            Task<string>? outTask = null, errTask = null;
+            Task? waitTask = null;
+            try
             {
-                var completed = await Task.WhenAny(pending.Append(cancellationSignal.Task)).ConfigureAwait(false);
-                if (completed == cancellationSignal.Task)
+                outTask = ReadBoundedAsync(outReader, maxCharsPerStream, readStop.Token);
+                errTask = ReadBoundedAsync(errReader, maxCharsPerStream, readStop.Token);
+                waitTask = child.WaitForExitAsync(token);
+                var pending = new List<Task> { outTask, errTask, waitTask };
+                var cancellationSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var cancellationRegistration = token.Register(
+                    static state => ((TaskCompletionSource)state!).TrySetResult(), cancellationSignal);
+                while (pending.Count != 0)
                 {
-                    token.ThrowIfCancellationRequested();
-                    throw new OperationCanceledException(token);
+                    var completed = await Task.WhenAny(pending.Append(cancellationSignal.Task)).ConfigureAwait(false);
+                    if (completed == cancellationSignal.Task)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        throw new OperationCanceledException(token);
+                    }
+                    await completed.ConfigureAwait(false);
+                    pending.Remove(completed);
                 }
-                await completed.ConfigureAwait(false);
-                pending.Remove(completed);
+                token.ThrowIfCancellationRequested();
+                return new Result(child.ExitCode, outTask.Result, errTask.Result);
             }
-            token.ThrowIfCancellationRequested();
-            return new Result(child.ExitCode, outTask.Result, errTask.Result);
+            finally
+            {
+                // On overflow/cancel/timeout, stop readers and kill the entire Job
+                // *before* waiting for EOF. Close owning streams only after joins.
+                readStop.Cancel();
+                job?.Dispose();
+                job = null;
+                var readers = new List<Task>(2);
+                if (outTask is not null) readers.Add(outTask);
+                if (errTask is not null) readers.Add(errTask);
+                if (readers.Count != 0)
+                {
+                    try
+                    {
+                        await Task.WhenAll(readers).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (readStop.IsCancellationRequested) { }
+                    catch (InvalidDataException) { /* overflow already being propagated */ }
+                    catch (TimeoutException ex)
+                    {
+                        throw new IOException("Native pipe readers did not stop after Job termination.", ex);
+                    }
+                }
+                // A process wait task also receives the cancelled token; observe its
+                // completion without requiring success to be treated as scan success.
+                if (waitTask is { IsCompleted: true })
+                    _ = waitTask.Exception;
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)
         {

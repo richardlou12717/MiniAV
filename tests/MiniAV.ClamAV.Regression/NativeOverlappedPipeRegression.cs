@@ -13,12 +13,8 @@ internal static class NativeOverlappedPipeRegression
         if (!IsInheritable(pipe.Child))
             throw new Exception("Native overlapped child writer is not inheritable.");
         var bytes = new byte[] { 0, 1, 127, 128, 255 };
-        await using (var writer = new FileStream(pipe.Child, FileAccess.Write, 4096, isAsync: false,
-            ownsHandle: false))
-        {
-            await writer.WriteAsync(bytes);
-            await writer.FlushAsync();
-        }
+        await pipe.ChildWriter.WriteAsync(bytes);
+        await pipe.ChildWriter.FlushAsync();
         var received = new byte[bytes.Length];
         await pipe.Parent.ReadExactlyAsync(received);
         if (!received.AsSpan().SequenceEqual(bytes))

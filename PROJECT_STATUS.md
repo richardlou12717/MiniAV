@@ -132,6 +132,11 @@
 - **Not yet locally validated.** Previous 30-run exceptional-path diagnostic PASS had +14 handles after warm-up and still needs longer investigation. Run `--native-launcher-test`, `--native-pre-resume-failure-test`, `--native-descendant-failure-test`, `--native-failure-repeat-test`, then `scripts/regression-test.ps1`. Do not infer reader task quiescence from success alone.
 - Remaining risk: synchronous `CreatePipe` reader-task cancellation may be non-deterministic. The inner bounded 5s join can report IOException but still disposes stream after it; must resolve before calling the launcher production-grade. ClamProcessRunner unchanged; PR #3 remains Draft.
 
+## M3.1 cleanup race correction (2026-10-19; awaiting Windows retest)
+- User's `--native-launcher-test` failed after cleanup-reporting change: `IOException` wrapping Win32 error 5 `Native child termination failed`. Likely race between asynchronous kill-on-Job-close and immediate fallback `TerminateProcess`; cause not yet confirmed.
+- Changed cleanup order: close Job; wait for native process termination (5s); only on wait timeout call `TerminateProcess`; if fallback returns error, accept a concurrent exit only after successful process-signaled confirmation. Otherwise fail closed. Commit `515c11a`.
+- Re-run the single `--native-launcher-test` first. Other tests and production integration must wait until this regression is resolved. PR #3 Draft, `main` unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

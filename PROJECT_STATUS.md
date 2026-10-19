@@ -102,6 +102,11 @@
 - Alongside earlier cancellation descendant PASS, the three primary failure causes now have isolated Windows fixture coverage showing no surviving sleeping descendant after launcher return. This is not proof of exhaustive process-tree cleanup in every environment.
 - Next: guarantee concurrent stdout/stderr readers terminate before disposing their streams, surface cleanup failures deterministically, and add exceptional-path repeat diagnostics. Do not switch production `ClamProcessRunner` until these pass. Keep PR #3 Draft and `main` unchanged.
 
+## M3.1 pipe-reader cleanup hardening (2026-10-19; pending Windows validation)
+- Updated isolated `WindowsSuspendedLauncher` to open parent read handles with async FileStreams and explicitly join both stdout/stderr read tasks after stopping reads and closing the Job. A bounded five-second reader join reports `IOException` rather than silently treating an unresolved drain as success.
+- Previous tests passed **before** this change; the new behavior has not yet been validated on Windows. Run `--native-launcher-test`, `--native-active-io-cancel-test`, `--native-descendant-failure-test`, and full `scripts/regression-test.ps1`. Watch for hangs, unexpected IOException, and exception masking.
+- Still outstanding: rigorous cleanup failure propagation (including native WaitForSingleObject failure), repeated exceptional paths, independent read-task observation, and final production integration. No change to production `ClamProcessRunner`; PR #3 Draft.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

@@ -68,6 +68,11 @@
 - Harmless PowerShell marker-writing child is created suspended, the hook throws, and the test checks that the marker was never created and the PID is not alive afterward. Not yet tested on user's Windows machine; the outcome must not be called PASS until executed.
 - Subsequent required work: cleanup failure visibility, in-flight pipe-read lifecycle, descendant/orphan tests, exceptional repeated-run stress, full regression. PR #3 remains Draft; no production integration.
 
+## M3.1 pre-resume failure Windows acceptance (2026-10-19)
+- User ran `--native-pre-resume-failure-test` on Windows; output: `M3.1 pre-resume fault injection and suspended-child cleanup passed`.
+- This validates one deterministic path after Job attachment and before ResumeThread: no marker file and no remaining live child at assertion. Does not prove cleanup of descendants or concurrent pipe readers.
+- Next: exercise cancellation/timeout while output is active, then descendant/job cleanup, repeated exception paths, and explicit cleanup failure handling. Keep PR #3 Draft and production runner unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

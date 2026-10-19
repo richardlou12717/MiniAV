@@ -9,19 +9,24 @@ internal static class NativeOverlappedPipeRegression
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
-        using var pipe = WindowsOverlappedOutputPipe.Create();
+        Console.WriteLine("M3.1 pipe stage: connect");
+        using var pipe = await WindowsOverlappedOutputPipe.CreateAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        Console.WriteLine("M3.1 pipe stage: connected");
         if (!IsInheritable(pipe.Child))
             throw new Exception("Native overlapped child writer is not inheritable.");
         var bytes = new byte[] { 0, 1, 127, 128, 255 };
-        await pipe.ChildWriter.WriteAsync(bytes);
-        await pipe.ChildWriter.FlushAsync();
+        Console.WriteLine("M3.1 pipe stage: write");
+        await pipe.ChildWriter.WriteAsync(bytes).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        await pipe.ChildWriter.FlushAsync().WaitAsync(TimeSpan.FromSeconds(5));
         var received = new byte[bytes.Length];
-        await pipe.Parent.ReadExactlyAsync(received);
+        Console.WriteLine("M3.1 pipe stage: read bytes");
+        await pipe.Parent.ReadExactlyAsync(received).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
         if (!received.AsSpan().SequenceEqual(bytes))
             throw new Exception("Overlapped output pipe byte transfer mismatch.");
 
         // With writer still open and no incoming bytes, cancellation must terminate
         // a pending overlapped read; it must not merely time out the test watchdog.
+        Console.WriteLine("M3.1 pipe stage: pending read and cancel");
         using var cancelled = new CancellationTokenSource();
         var pending = pipe.Parent.ReadAsync(new byte[16].AsMemory(), cancelled.Token).AsTask();
         await Task.Delay(100);

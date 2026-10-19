@@ -88,6 +88,10 @@
 - This test is Windows-only and **has not yet been run**. A PASS would cover one parent/descendant cancellation case only; timeout, output overflow, concurrent pipe read quiescence and cleanup failure reporting still need focused testing. Do not integrate production runner.
 - Run: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-descendant-cancel-test`.
 
+## M3.1 descendant cancellation Windows acceptance (2026-10-19)
+- User ran `--native-descendant-cancel-test` on Windows and observed `M3.1 cancellation kills descendant Job members passed`. The isolated native launcher terminated the sleeping descendant in this cancellation fixture.
+- This validates one descendant cancellation scenario only; timeout/output-limit descendant cleanup, concurrent pipe reader shutdown, sustained handle use and cleanup failure handling remain pending. Production `ClamProcessRunner` remains unchanged. PR #3 stays Draft.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

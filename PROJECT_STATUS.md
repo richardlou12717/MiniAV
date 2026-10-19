@@ -41,6 +41,11 @@
 - Added separately opt-in `--native-launcher-test` for stdout/stderr/exit, pre-launch cancel, running cancel, timeout, and simultaneous output flood. **Not yet run on user Windows or confirmed by CI**. Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-launcher-test`.
 - Still outstanding: post-create/pre-resume cancellation injection; orphan/descendant tests; repeated handle-leak checks; robust termination/pipe reader quiescence; Windows acceptance; real ClamAV compatibility and production integration. Prior Process.Start-based runner remains active.
 
+## M3.1 Windows acceptance update (2026-10-18)
+- User reported PASS on Windows for `--native-launcher-test`: `M3.1 isolated native launcher smoke, cancellation, timeout and output cap passed`. This is an isolated fixture, not production ClamAV integration or descendant cleanup proof.
+- Added `--native-launcher-repeat-test`: 30 harmless PowerShell launches, output assertions and parent handle-count delta diagnostic. Pending local validation; handle count is heuristic.
+- Next: repeat result, explicit cleanup failure reporting, reader task shutdown, descendant/orphan and pre-resume fault injection. Production `ClamProcessRunner` unchanged; PR #3 Draft.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

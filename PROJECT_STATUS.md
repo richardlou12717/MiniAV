@@ -117,6 +117,11 @@
 - This revalidates normal native launch, active I/O cancellation, and descendant cleanup on timeout/overflow after the correction. It does **not** establish deterministic cancellation of outstanding synchronous-backed pipe read tasks under every race, nor confirm a fresh full `regression-test.ps1` pass after this latest change.
 - Before production integration: explicitly verify reader quiescence, cleanup failure propagation, exceptional-path repetition, Windows CI and final full regression. Keep PR #3 Draft; `ClamProcessRunner` remains unchanged.
 
+## M3.1 repeated exceptional-path diagnostic (2026-10-19, awaiting Windows validation)
+- Added opt-in `--native-failure-repeat-test`, 30 alternating harmless Windows launches covering user cancellation, timeout and simultaneous stdout/stderr overflow, with 3 warm-up runs and a bounded watchdog per launch. Measures process handle-count deltas at 10/20/30 runs and fails on unexpected exception or >30-handle growth after warm-up.
+- This is diagnostic only; no proof of leak freedom or deterministic synchronous-pipe reader shutdown. **Not yet locally validated.** Next: run new fixture and full regression, then address cleanup failure reporting and unresolved in-flight synchronous reader safety before replacing production runner.
+- Test command: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-failure-repeat-test`. PR #3 remains Draft, main unaffected.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

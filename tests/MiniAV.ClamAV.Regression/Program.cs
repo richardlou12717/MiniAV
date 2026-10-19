@@ -176,6 +176,7 @@ try
         }
         catch (ArgumentException) { }
         Console.WriteLine("Windows CreateProcess argument quoting regressions passed");
+        NativePipeRegression.Run();
         await SuspendedLaunchRegression.RunAsync();
         SuspendedLaunchRegression.RunFailureCleanup();
         Console.WriteLine("ClamAV Job Object membership and close regressions passed");

@@ -122,6 +122,11 @@
 - This is diagnostic only; no proof of leak freedom or deterministic synchronous-pipe reader shutdown. **Not yet locally validated.** Next: run new fixture and full regression, then address cleanup failure reporting and unresolved in-flight synchronous reader safety before replacing production runner.
 - Test command: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-failure-repeat-test`. PR #3 remains Draft, main unaffected.
 
+## M3.1 exceptional-path repeated test Windows acceptance (2026-10-19)
+- User executed `--native-failure-repeat-test` and reported PASS: after warm-up baseline 265 handles; iteration 10 = 273 (+8), iteration 20 = 274 (+9), iteration 30 = 279 (+14). Thirty alternating cancellation, timeout and output-overflow runs completed, with final delta +14 beneath the fixture's +30 threshold.
+- Handle growth is nonzero and continued over the last 20 iterations; this short diagnostic does **not** prove absence of a slow leak. Do not relax the threshold to dismiss that possibility. Further sustained checks and explicit reader completion/cleanup failure propagation are required before production integration.
+- No additional native launcher changes in this checkpoint. Keep PR #3 Draft and `main` unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

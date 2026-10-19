@@ -30,3 +30,8 @@ Job Object is not an OS sandbox. Suspended process creation plus Job assignment 
 - Added `WindowsChildPipe` as a standalone disposable Windows anonymous pipe owner; only the designated child endpoint is inheritable. This is not yet passed to `CreateProcessW` and it is not a substitute for the planned explicit `STARTUPINFOEX` handle allowlist.
 - Added `NativePipeRegression` to the ordinary Windows test suite to verify parent/child inheritability flags in both stream directions. Windows CI and local behavior must pass before further integration.
 - Current production `ClamProcessRunner` remains unchanged. Next stage: explicit inherited handle list, safe stream ownership, stdout/stderr draining, and Job-before-resume lifecycle.
+
+## Native redirected-I/O prototype (pending Windows verification)
+- New opt-in regression: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-io-test`.
+- Uses `STARTUPINFOEX`, a three-handle `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, `CREATE_SUSPENDED`, Job attachment before `ResumeThread`, and redirected stdout/stderr from harmless `cmd.exe`.
+- Production scanner **unchanged**; native test may still need Windows-specific adjustments. Validate GitHub CI compilation, run opt-in fixture locally, and investigate any hangs/handle leaks before production integration. The standalone fixture has a 10-second child deadline and failure cleanup.

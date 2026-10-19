@@ -137,3 +137,17 @@ Do not switch the production path until the native launcher handles `STARTUPINFO
 ### Native STARTUPINFOEX redirected I/O local test — 2026-10-18
 - **PASS (user-observed)**: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-io-test` printed `Windows STARTUPINFOEX redirected child IO regression passed` after commit `4f9f9e3` corrected cmd.exe `/c` syntax.
 - Standalone harmless cmd.exe fixture verifies three-endpoint explicit inheritance list, suspended creation, Job assignment before resume, stdout/stderr and completion. Not production scanner; cancellation, timeout, high-volume streams, orphan/handle-leak behavior and real ClamAV remain unverified for new launcher.
+
+### M3.1 acceptance and remaining caveats — 2026-10-19
+
+User-observed Windows results (isolated native launcher, NOT production ClamAV):
+- Basic native launcher after corrected Job-close/wait-before-fallback-terminate order — PASS. Earlier immediate fallback failed with Win32 Access Denied (5).
+- Pre-resume injected fault — PASS (earlier run); no new re-run supplied in the latest batch.
+- Active stdout/stderr cancellation — PASS (five runs).
+- Descendant removal after cancellation — PASS; after timeout and concurrent stdout/stderr overflow — PASS.
+- 30 regular starts after warm-up — PASS, handle delta +4. First un-warmed experiment had failed at +50; this is retained for historical accuracy.
+- 30 alternating cancellation/timeout/overflow runs **after latest cleanup fix** — PASS; handles baseline 267, run 10 272 (+5), run 20 273 (+6), run 30 275 (+8). Positive delta does not establish absence of a slow leak.
+- Full `scripts/regression-test.ps1` after latest cleanup fix — PASS; Release build in 1.9s, all normal Core/Windows suspended/Job/ClamAV regression categories passed.
+- GitHub Windows CI not established green for latest head at handoff (earlier run seen in_progress).
+
+Open safety blocker: current `CreatePipe` outputs are synchronous. `isAsync:true` failed in Windows. Reader task joining currently has a five-second bound, but on failure can still leave an in-flight read while stream ownership unwinds. Do not represent this as a complete deterministic cleanup guarantee. Leave PR #3 Draft and do not switch production runner.

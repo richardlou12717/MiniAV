@@ -84,8 +84,8 @@ internal static class WindowsSuspendedLauncher
             stdout.Child.Dispose();
             stderr.Child.Dispose();
             stdin.Parent.Dispose();
-            using var stdoutStream = new FileStream(stdout.Parent, FileAccess.Read, 4096, isAsync: true);
-            using var stderrStream = new FileStream(stderr.Parent, FileAccess.Read, 4096, isAsync: true);
+            using var stdoutStream = new FileStream(stdout.Parent, FileAccess.Read, 4096, isAsync: false);
+            using var stderrStream = new FileStream(stderr.Parent, FileAccess.Read, 4096, isAsync: false);
             using var outReader = new StreamReader(stdoutStream, Encoding.UTF8, true);
             using var errReader = new StreamReader(stderrStream, Encoding.UTF8, true);
             using var readStop = CancellationTokenSource.CreateLinkedTokenSource(token);

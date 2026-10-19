@@ -46,6 +46,12 @@
 - Added `--native-launcher-repeat-test`: 30 harmless PowerShell launches, output assertions and parent handle-count delta diagnostic. Pending local validation; handle count is heuristic.
 - Next: repeat result, explicit cleanup failure reporting, reader task shutdown, descendant/orphan and pre-resume fault injection. Production `ClamProcessRunner` unchanged; PR #3 Draft.
 
+## M3.1 repeat-test failure and investigation (2026-10-19)
+- User ran the 30-iteration `--native-launcher-repeat-test`: handles before=204, after=254, delta=+50; test correctly FAILED. Treat as suspected resource leak, not yet root-caused.
+- Changed launcher cancellation watcher from an infinite `Task.Delay` to a `TaskCompletionSource` and explicitly disposed `CancellationTokenRegistration` (commit `3677dca`). This is a suspected lifetime issue, **not proven as the +50 root cause**.
+- Updated repeated-run fixture to perform three warm-up runs and print handle counts every ten iterations (commit `31fadef`). Await local retest and check growth slope. If growth persists, investigate handle types and async Process/pipe lifetimes; do not weaken the guardrail or connect launcher to production.
+- Prior single-run native smoke PASSED. Production `ClamProcessRunner` still unchanged. PR #3 remains Draft, no merge.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

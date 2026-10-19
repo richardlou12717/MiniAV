@@ -8,6 +8,11 @@ if (args.Length > 0 && args[0] == "--suspended-failure-test")
     SuspendedLaunchRegression.RunFailureCleanup();
     return;
 }
+if (args.Length > 0 && args[0] == "--native-io-test")
+{
+    await NativeInheritedIoRegression.RunAsync();
+    return;
+}
 if (args.Length > 0 && args[0] == "--suspended-launch-test")
 {
     await SuspendedLaunchRegression.RunAsync();

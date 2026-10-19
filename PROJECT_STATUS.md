@@ -62,6 +62,12 @@
 - Combined with the opt-in 30-run diagnostic (+4 handles after warm-up), M3.1 baseline is stable enough to begin targeted failure-path regressions, **not** production integration. The native launcher remains isolated from production `ClamProcessRunner`.
 - Remaining: native cancellation/timeout child-descendant termination assertions, injected failure before resume, reading-task shutdown after overflow, repeated exceptional paths and hard cleanup reporting. Draft PR #3 only.
 
+## M3.1 pre-resume fault injection (2026-10-19; awaiting Windows verification)
+- Added an internal `beforeResumeTestHook` to the isolated `WindowsSuspendedLauncher`, invoked only after successful Job attachment and before `ResumeThread`; it permits deterministic failure injection. Production ClamAV adapter and ordinary callers do not use this hook.
+- New opt-in command: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-pre-resume-failure-test`.
+- Harmless PowerShell marker-writing child is created suspended, the hook throws, and the test checks that the marker was never created and the PID is not alive afterward. Not yet tested on user's Windows machine; the outcome must not be called PASS until executed.
+- Subsequent required work: cleanup failure visibility, in-flight pipe-read lifecycle, descendant/orphan tests, exceptional repeated-run stress, full regression. PR #3 remains Draft; no production integration.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

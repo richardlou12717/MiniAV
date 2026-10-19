@@ -14,7 +14,7 @@ internal static class WindowsSuspendedLauncher
     private const uint Suspended = 0x4, NoWindow = 0x08000000, ExtendedInfo = 0x00080000;
     private const uint UseStdHandles = 0x100;
     private const int HandleListAttribute = 0x00020002;
-    private const uint StillActive = 259;
+    private const uint WaitObject0 = 0, WaitTimeout = 258, WaitFailed = 0xFFFFFFFF;
     internal sealed record Result(int ExitCode, string StandardOutput, string StandardError);
 
     internal static async Task<Result> RunAsync(string executable, IReadOnlyList<string> args,
@@ -149,23 +149,47 @@ internal static class WindowsSuspendedLauncher
         }
         finally
         {
-            // Job close is first: kills descendants too, including after a drain overflow.
-            job?.Dispose();
-            if (native.ProcessHandle != IntPtr.Zero)
+            // Always release every handle even when process termination fails.
+            // A failed wait is a fatal cleanup error, never a successful scan.
+            Exception? cleanupFailure = null;
+            try
             {
-                if (GetExitCodeProcess(native.ProcessHandle, out var code) && code == StillActive)
+                job?.Dispose(); // Kill all Job members before checking process exit.
+                if (native.ProcessHandle != IntPtr.Zero)
                 {
-                    TerminateProcess(native.ProcessHandle, 91);
-                    var wait = WaitForSingleObject(native.ProcessHandle, 5000);
-                    if (wait != 0) Debug.WriteLine($"Native process cleanup wait returned {wait}.");
+                    var wait = WaitForSingleObject(native.ProcessHandle, 0);
+                    if (wait == WaitTimeout)
+                    {
+                        if (!TerminateProcess(native.ProcessHandle, 91))
+                        {
+                            var error = Marshal.GetLastWin32Error();
+                            // The child can exit between the wait and termination call.
+                            if (WaitForSingleObject(native.ProcessHandle, 0) != WaitObject0)
+                                throw new Win32Exception(error, "Native child termination failed.");
+                        }
+                        wait = WaitForSingleObject(native.ProcessHandle, 5000);
+                    }
+                    if (wait != WaitObject0)
+                        throw wait == WaitFailed
+                            ? new Win32Exception(Marshal.GetLastWin32Error(), "Native child wait failed.")
+                            : new IOException($"Native child did not exit during cleanup (wait={wait}).");
                 }
-                CloseHandle(native.ThreadHandle);
-                CloseHandle(native.ProcessHandle);
             }
-            child?.Dispose();
-            if (initialized) DeleteProcThreadAttributeList(attributes);
-            if (listMemory != IntPtr.Zero) Marshal.FreeHGlobal(listMemory);
-            if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
+            catch (Exception ex)
+            {
+                cleanupFailure = ex;
+            }
+            finally
+            {
+                if (native.ThreadHandle != IntPtr.Zero) CloseHandle(native.ThreadHandle);
+                if (native.ProcessHandle != IntPtr.Zero) CloseHandle(native.ProcessHandle);
+                child?.Dispose();
+                if (initialized) DeleteProcThreadAttributeList(attributes);
+                if (listMemory != IntPtr.Zero) Marshal.FreeHGlobal(listMemory);
+                if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
+            }
+            if (cleanupFailure is not null)
+                throw new IOException("Native process cleanup could not be confirmed.", cleanupFailure);
         }
     }
 

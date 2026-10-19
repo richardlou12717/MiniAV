@@ -92,6 +92,11 @@
 - User ran `--native-descendant-cancel-test` on Windows and observed `M3.1 cancellation kills descendant Job members passed`. The isolated native launcher terminated the sleeping descendant in this cancellation fixture.
 - This validates one descendant cancellation scenario only; timeout/output-limit descendant cleanup, concurrent pipe reader shutdown, sustained handle use and cleanup failure handling remain pending. Production `ClamProcessRunner` remains unchanged. PR #3 stays Draft.
 
+## M3.1 native descendant timeout/output-overflow tests (2026-10-19; awaiting local Windows validation)
+- New opt-in `--native-descendant-failure-test` runs two harmless PowerShell parent/grandchild fixtures. For timeout, a sleeping descendant must be alive before a short native execution deadline; for output overflow, a descendant marker is written before the parent floods both stdout/stderr beyond 1,024 chars. Both assert the expected exception and verify descendant termination, with defensive test cleanup only on failure.
+- To validate: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-descendant-failure-test`.
+- **Not yet tested on Windows.** Further work remains on in-flight pipe reader shutdown, explicit cleanup failure reporting, repeated exceptional stress, and production integration. ClamProcessRunner unchanged; PR #3 Draft and main untouched.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

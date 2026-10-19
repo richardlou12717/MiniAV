@@ -73,6 +73,11 @@
 - This validates one deterministic path after Job attachment and before ResumeThread: no marker file and no remaining live child at assertion. Does not prove cleanup of descendants or concurrent pipe readers.
 - Next: exercise cancellation/timeout while output is active, then descendant/job cleanup, repeated exception paths, and explicit cleanup failure handling. Keep PR #3 Draft and production runner unchanged.
 
+## M3.1 active pipe cancellation regression (2026-10-19; pending local validation)
+- Added opt-in `--native-active-io-cancel-test`: five harmless PowerShell runs that attempt continuous concurrent stdout/stderr writing while cancellation fires, each guarded against a fixture hang.
+- This is a first active-I/O cancellation test, not yet proof that both readers were busy when cancelled. Need stronger deterministic synchronization, timeout/overflow cleanup, and descendant checks.
+- Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-active-io-cancel-test` locally. Production runner remains unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

@@ -83,6 +83,11 @@
 - This does not prove both pipes were actively draining at the exact cancellation instant, that reader tasks have all quiesced, or that grandchildren are terminated; targeted instrumentation remains needed.
 - Next implement a descendant PID-marker fixture for cancellation, timeout, and output overflow, then verify no surviving child processes. Keep production runner unchanged and PR #3 Draft.
 
+## M3.1 descendant cleanup fixture (2026-10-19; not yet validated)
+- Added opt-in `--native-descendant-cancel-test`: a harmless PowerShell parent spawns a sleeping PowerShell child and writes its PID to a temporary marker; the fixture waits for that marker, cancels native launch, then verifies the descendant exits after Job close. Defensive test cleanup kills a survivor and fails the assertion; it is not evidence of launcher success.
+- This test is Windows-only and **has not yet been run**. A PASS would cover one parent/descendant cancellation case only; timeout, output overflow, concurrent pipe read quiescence and cleanup failure reporting still need focused testing. Do not integrate production runner.
+- Run: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-descendant-cancel-test`.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

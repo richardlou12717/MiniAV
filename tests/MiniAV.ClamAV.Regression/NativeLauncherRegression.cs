@@ -99,7 +99,7 @@ internal static class NativeLauncherRegression
         }
     }
 
-    private sealed class InjectedPreResumeException : Exception;
+    private sealed class InjectedPreResumeException : Exception { }
 
     internal static async Task RunAsync()
     {

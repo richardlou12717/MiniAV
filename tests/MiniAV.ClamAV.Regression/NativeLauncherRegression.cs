@@ -164,10 +164,15 @@ internal static class NativeLauncherRegression
                         throw new Exception("Native launcher exited before descendant creation.");
                     await Task.Delay(50, guard.Token);
                 }
-                descendantPid = int.Parse(await File.ReadAllTextAsync(marker, guard.Token),
-                    System.Globalization.CultureInfo.InvariantCulture);
-                if (descendantPid <= 0)
-                    throw new Exception("Invalid descendant PID.");
+                // File.Exists can be observed before WriteAllText has finished.
+                while (descendantPid <= 0)
+                {
+                    var value = await File.ReadAllTextAsync(marker, guard.Token);
+                    if (int.TryParse(value, System.Globalization.NumberStyles.None,
+                            System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+                        descendantPid = parsed;
+                    if (descendantPid <= 0) await Task.Delay(25, guard.Token);
+                }
                 cancel.Cancel();
                 try
                 {

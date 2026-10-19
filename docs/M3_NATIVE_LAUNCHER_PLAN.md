@@ -35,3 +35,11 @@ Job Object is not an OS sandbox. Suspended process creation plus Job assignment 
 - New opt-in regression: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-io-test`.
 - Uses `STARTUPINFOEX`, a three-handle `PROC_THREAD_ATTRIBUTE_HANDLE_LIST`, `CREATE_SUSPENDED`, Job attachment before `ResumeThread`, and redirected stdout/stderr from harmless `cmd.exe`.
 - Production scanner **unchanged**; native test may still need Windows-specific adjustments. Validate GitHub CI compilation, run opt-in fixture locally, and investigate any hangs/handle leaks before production integration. The standalone fixture has a 10-second child deadline and failure cleanup.
+
+
+## M3.1 isolated launcher checkpoint (2026-10-18; pending Windows validation)
+- Introduced `WindowsSuspendedLauncher.RunAsync` (not wired into `ClamProcessRunner`). Builds an argv-safe command line, creates a child suspended with `STARTUPINFOEX` three-stdio-handle allowlist, attaches `ClamJob` before resume, and drains stdout/stderr concurrently with per-stream character limits.
+- Checks cancellation before launch and resume; a linked deadline drives timeout. A fail-fast completion loop reacts to overflow, cancellation, and process/read failures without awaiting unrelated blocked pipe readers before entering cleanup.
+- Cleanup closes Job first (kill-on-close), then terminates and waits briefly for a still-active main child, disposes owned pipe/attribute/process/thread resources. A 5-second failed wait is currently only logged with `Debug.WriteLine`; **strong cleanup confirmation and explicit failure reporting remain incomplete**. Pipe readers may still be unwinding after cancellation. Not production-ready.
+- Added separately opt-in `--native-launcher-test` for stdout/stderr/exit, pre-launch cancel, running cancel, timeout, and simultaneous output flood. **Not yet run on user Windows or confirmed by CI**. Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-launcher-test`.
+- Still outstanding: post-create/pre-resume cancellation injection; orphan/descendant tests; repeated handle-leak checks; robust termination/pipe reader quiescence; Windows acceptance; real ClamAV compatibility and production integration. Prior Process.Start-based runner remains active.

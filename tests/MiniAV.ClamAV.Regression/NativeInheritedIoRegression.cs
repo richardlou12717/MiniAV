@@ -41,7 +41,7 @@ internal static class NativeInheritedIoRegression
 
             var cmd = Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe";
             var line = new StringBuilder(WindowsArgumentEncoding.Build(cmd,
-                new[] { "/d", "/s", "/c", "echo NATIVE_STDOUT & echo NATIVE_STDERR 1>&2" }));
+                new[] { "/d", "/c", "echo NATIVE_STDOUT & echo NATIVE_STDERR 1>&2" }));
             var startup = new StartupInfoEx
             {
                 StartupInfo = new StartupInfo

@@ -132,6 +132,88 @@ internal static class NativeLauncherRegression
         Console.WriteLine("M3.1 active stdout/stderr cancellation regression passed");
     }
 
+
+    // A real descendant must die when the launcher Job is closed on cancellation.
+    internal static async Task RunDescendantCancellationAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var marker = Path.Combine(Path.GetTempPath(),
+            "miniav-descendant-" + Guid.NewGuid().ToString("N") + ".pid");
+        int descendantPid = 0;
+        try
+        {
+            var escaped = marker.Replace("'", "''", StringComparison.Ordinal);
+            var script = "$child = Start-Process -FilePath '" +
+                exe.Replace("'", "''", StringComparison.Ordinal) +
+                "' -ArgumentList @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 60') -PassThru; " +
+                "[IO.File]::WriteAllText('" + escaped + "', [string]$child.Id); " +
+                "while ($true) { Start-Sleep -Milliseconds 100 }";
+            using var cancel = new CancellationTokenSource();
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            var running = WindowsSuspendedLauncher.RunAsync(exe,
+                new[] { "-NoProfile", "-NonInteractive", "-Command", script }, null,
+                768L * 1024 * 1024, 32768, TimeSpan.FromSeconds(15), cancel.Token);
+            try
+            {
+                // Require evidence of the child before requesting cancellation.
+                while (!File.Exists(marker))
+                {
+                    if (running.IsCompleted)
+                        throw new Exception("Native launcher exited before descendant creation.");
+                    await Task.Delay(50, guard.Token);
+                }
+                descendantPid = int.Parse(await File.ReadAllTextAsync(marker, guard.Token),
+                    System.Globalization.CultureInfo.InvariantCulture);
+                if (descendantPid <= 0)
+                    throw new Exception("Invalid descendant PID.");
+                cancel.Cancel();
+                try
+                {
+                    await running.WaitAsync(guard.Token);
+                    throw new Exception("Descendant fixture ignored cancellation.");
+                }
+                catch (OperationCanceledException) when (cancel.IsCancellationRequested && !guard.IsCancellationRequested) { }
+                // Give Windows a bounded window for exit observation after Job close.
+                var deadline = DateTime.UtcNow.AddSeconds(5);
+                while (DateTime.UtcNow < deadline && IsAlive(descendantPid))
+                    await Task.Delay(50, guard.Token);
+                if (IsAlive(descendantPid))
+                    throw new Exception($"Job cleanup left descendant alive: pid={descendantPid}");
+                Console.WriteLine("M3.1 cancellation kills descendant Job members passed");
+            }
+            finally
+            {
+                cancel.Cancel();
+                try { await running.WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
+                catch (TimeoutException) { /* test will fail via guard or assertions */ }
+            }
+        }
+        finally
+        {
+            // Defensive fixture cleanup; this does not count as launcher success.
+            if (descendantPid > 0 && IsAlive(descendantPid))
+            {
+                using var survivor = System.Diagnostics.Process.GetProcessById(descendantPid);
+                survivor.Kill(entireProcessTree: true);
+                await survivor.WaitForExitAsync();
+            }
+            if (File.Exists(marker)) File.Delete(marker);
+        }
+    }
+
+    private static bool IsAlive(int pid)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException) { return false; }
+    }
+
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

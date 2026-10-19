@@ -43,3 +43,13 @@ Job Object is not an OS sandbox. Suspended process creation plus Job assignment 
 - Cleanup closes Job first (kill-on-close), then terminates and waits briefly for a still-active main child, disposes owned pipe/attribute/process/thread resources. A 5-second failed wait is currently only logged with `Debug.WriteLine`; **strong cleanup confirmation and explicit failure reporting remain incomplete**. Pipe readers may still be unwinding after cancellation. Not production-ready.
 - Added separately opt-in `--native-launcher-test` for stdout/stderr/exit, pre-launch cancel, running cancel, timeout, and simultaneous output flood. **Not yet run on user Windows or confirmed by CI**. Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-launcher-test`.
 - Still outstanding: post-create/pre-resume cancellation injection; orphan/descendant tests; repeated handle-leak checks; robust termination/pipe reader quiescence; Windows acceptance; real ClamAV compatibility and production integration. Prior Process.Start-based runner remains active.
+
+## M3.1 latest decision gate (2026-10-19)
+
+**Isolated implementation exists and passed local Windows smoke/failure-path tests, but is NOT wired into production.** See `PROJECT_STATUS.md` → `CURRENT HANDOFF` for exact runs, handle deltas and next steps.
+
+Critical technical finding: `WindowsChildPipe.Create` uses `CreatePipe`, yielding synchronous anonymous pipe handles. `FileStream(isAsync:true)` was rejected by Windows/.NET; reverted to `isAsync:false` and retested. The bounded five-second Task join is insufficient evidence that a synchronous-backed read always stops before its `StreamReader`/`FileStream` is disposed. **Resolve this before M3.4** with a defensible cancelable-I/O strategy and instrumented proof, not by altering the `isAsync` flag.
+
+The other corrected native cleanup sequence is: close Job; wait for process exit; only if timeout attempt fallback termination and reconfirm process exit; report unsuccessful termination/wait fail closed. Immediate fallback previously produced Win32 Access Denied (5); after correction, native smoke, descendant timeout/overflow and 30-run exceptional fixtures passed on user Windows.
+
+**Remaining gates:** deterministic pipe-read task quiescence; native cleanup error/fault injection; long exceptional-path handle trend (last 30-run failure suite +8 handles); nested Job/denied-attach; Windows CI opt-in coverage; harmless real ClamAV native-launch smoke **after** integration; WPF/CLI acceptance. The production Process.Start-before-Job race remains open. PR #3 stays Draft, main untouched.

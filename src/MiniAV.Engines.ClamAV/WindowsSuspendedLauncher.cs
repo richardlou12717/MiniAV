@@ -92,11 +92,15 @@ internal static class WindowsSuspendedLauncher
             // synchronous-backed pipe read can remain blocked until Job termination.
             // Observe each completion and return to finally immediately on any failure.
             var pending = new List<Task> { outTask, errTask, waitTask };
-            var cancelled = Task.Delay(Timeout.InfiniteTimeSpan, token);
+            // An infinite Task.Delay(token) can retain its cancellation registration after
+            // successful completion of the child; use an explicitly disposed registration.
+            var cancellationSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellationRegistration = token.Register(
+                static state => ((TaskCompletionSource)state!).TrySetResult(), cancellationSignal);
             while (pending.Count != 0)
             {
-                var completed = await Task.WhenAny(pending.Append(cancelled)).ConfigureAwait(false);
-                if (completed == cancelled)
+                var completed = await Task.WhenAny(pending.Append(cancellationSignal.Task)).ConfigureAwait(false);
+                if (completed == cancellationSignal.Task)
                 {
                     token.ThrowIfCancellationRequested();
                     throw new OperationCanceledException(token);

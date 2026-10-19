@@ -3,6 +3,38 @@ using MiniAV.Engines.ClamAV;
 // Opt-in M3.1 Windows-only launcher checks. Not a ClamAV integration test.
 internal static class NativeLauncherRegression
 {
+
+    // Opt-in repeated-run check; handle count is a diagnostic, not a formal leak proof.
+    internal static async Task RunRepeatedAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var args = new[] { "-NoProfile", "-NonInteractive", "-Command",
+            "[Console]::Out.WriteLine('OK'); [Console]::Error.WriteLine('E')" };
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        current.Refresh();
+        var baseline = current.HandleCount;
+        const int iterations = 30;
+        for (int i = 0; i < iterations; i++)
+        {
+            var result = await WindowsSuspendedLauncher.RunAsync(exe, args, null,
+                768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(20), CancellationToken.None);
+            if (result.ExitCode != 0 || !result.StandardOutput.Contains("OK", StringComparison.Ordinal)
+                || !result.StandardError.Contains("E", StringComparison.Ordinal))
+                throw new Exception($"Native launcher repeated run failed at iteration {i}.");
+        }
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        current.Refresh();
+        var after = current.HandleCount;
+        Console.WriteLine($"M3.1 repeat diagnostics: iterations={iterations}, handles before={baseline}, after={after}, delta={after - baseline}");
+        if (after - baseline > 30)
+            throw new Exception($"Possible native handle leak: +{after - baseline} handles after {iterations} runs.");
+        Console.WriteLine("M3.1 repeated native launcher regression passed");
+    }
+
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

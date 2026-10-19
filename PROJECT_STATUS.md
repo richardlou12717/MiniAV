@@ -1,126 +1,63 @@
 # MiniAV — Project Status / Cross-session Handoff
 
-Last updated: 2026-10-17
-Status: **M0, M1, M2 merged; M3 adapter, opt-in CLI and WPF integration committed on feature branch (unmerged; latest WPF CI pending).**
+**Updated:** 2026-10-18  
+**Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
+**State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-18). **Do not merge without explicit user authorization.**
 
-## Source of truth and branches
-- Private GitHub repository: https://github.com/richardlou12717/MiniAV
-- Stable branch: `main`. M3 design branch: `feature/m3-clamav-adapter` (not merged).
-- M1: PR #1 merged on 2026-10-17 (`d9efa61bcb9de3d7c7889a9fb53157a5da083990`).
-- M2: PR #2 merged on 2026-10-17 (`64e366996d19e4d2e02bd3540326c883b57f35e5`).
-- M2 feature branch `feature/m2-scan-foundation` is historical; do not develop M3 on it.
-- User Windows working directory: `C:\Projects\MiniAV`.
-- GitHub files are authoritative; read them anew in each session.
+## Repository and working agreement
+- Private repo: https://github.com/richardlou12717/MiniAV
+- Feature branch: `feature/m3-clamav-adapter`; stable `main` has not received M3 work.
+- User's local Windows directory: `C:\Projects\MiniAV`; user runs local Windows/real-ClamAV/WPF checks; assistant develops and documents on GitHub feature branch.
+- The files in the repo are source of truth. In a new chat, read **this feature branch version** of `PROJECT_STATUS.md` first, then `docs/M3_NATIVE_LAUNCHER_PLAN.md`, `docs/M3_WINDOWS_ACCEPTANCE.md`, current ClamAV runner and regression fixtures. Do not rely on stale `main` status for M3 progress.
+- Never commit private scan outputs, personal files, malware samples, credentials, or automatic quarantine. Do not silently alter Microsoft Defender.
 
-## Product and safety scope
-- Windows x64; C# / .NET 10. Local, on-demand read-only scanning.
-- Two front ends: CLI and WPF. Core interfaces and Hash engine are separate projects.
-- SHA-256 signatures are harmless *demo-only*; `NO_MATCH` never means a file is safe.
-- No real malware signature coverage, no auto deletion, execution, moving, quarantine, Defender replacement, driver, or background telemetry.
-- No automatic file/path uploads or disk logs. Manual WPF log export is explicitly user initiated.
+## Product scope and stable M0–M2
+- Windows x64, C#/.NET 10. Local read-only on-demand file/folder scanning. CLI and WPF; Core ScanCoordinator and demo SHA-256 Hash engine are separate.
+- `main` contains accepted M0/M1/M2. WPF supports browse, live results, cancellation and guarded close, explicit Save Log; bounded display/logs can be partial, not forensic audit logs.
+- Scan size/count/time limits; cancellation, access/read failures and partial scans fail closed. No auto-delete, quarantine, driver, background execution, file upload, Defender replacement or promise that `NoMatch` means safe.
+- M1 PR #1 and M2 PR #2 were merged with authorization in 2026-10-17.
 
-## Implemented (M0–M2)
-- `src/MiniAV.Core`: `IScanEngine`, `ScanCoordinator`, request/results/outcome, cancellation and fail-closed error reporting.
-- Limits: optional `MaxFiles`, actual streaming `MaxFileBytes` (with file-length preflight), optional overall `MaxScanDuration`. Timeout/limit errors are **incomplete scans**, not clean results.
-- `src/MiniAV.Engines.Hash`: async SHA-256 with demo JSON signatures.
-- `src/MiniAV.Cli`: `--path` and `--db`; exit 0=not matched without errors, 1=demo match, 2=input error, 3=scan incomplete/error, 130=user Ctrl+C.
-- `src/MiniAV.Wpf`: browse file/folder/database, optional resource limits, live counts, results, cancel/restart, explicit Save log.
-- UI results: batched 100ms / up to 400 results per update; bounded pending result queue (2,000), about 500,000 display characters. Older entries may be omitted; exported display log says `PARTIAL DISPLAY LOG` if truncated. Not a complete forensic/audit log.
-- `ScanCloseGate`: defers WPF window close while scan is running and requests cancellation; Core regression deterministically verifies worker-exit ordering. Native WPF Close event is not independently UI-automated.
-- No reparse-point traversal; report Error/Skipped distinctly from NoMatch.
+## M3 implemented on feature branch
+- `src/MiniAV.Engines.ClamAV`: opt-in external `clamscan.exe` adapter and parser. CLI `--engine clamav --clamav-exe <absolute path> [--clamav-db <folder>]`; WPF Hash/ClamAV selector, executable and optional DB folder controls.
+- Separate clamscan process per file with fixed CLI switches, bounded stdout/stderr (~32,768 chars each), ~3-minute default per-file timeout, cancellation, process-tree termination, fail-closed errors; certain `Heuristics.Limits.Exceeded` paths treated as incomplete, not clean. Best-effort file size/modified-time comparison detects *some* concurrent mutation but does not prove stable content.
+- Windows `ClamJob` Job Object with kill-on-close and 2 GiB per-process and aggregate committed-memory ceilings. Local low-memory (192 MiB vs 256 MiB target) and aggregate (parent/descendant under 256 MiB) *opt-in stress fixtures* were reported PASS earlier; these are bounded demonstrations, not proof of all production memory behavior or CPU limits.
+- **Important remaining security bug:** production `ClamProcessRunner` uses `Process.Start()` **before** `ClamJob.Attach()`. There is a short execution-before-Job race. New native suspended launcher is not connected to production yet. Do not claim race is fixed.
+- Real user-installed ClamAV 1.5.4 (reported database version 28157) passed harmless clean-file smoke test; user also passed real WPF ClamAV NoMatch=2/Errors=0 and invalid-executable Errors=2/NoMatch=0, plus selector/cancel/restart/close/export checks. Signature freshness/authenticity and complete scan coverage remain unverified.
 
-## Verified and accepted (2026-10-17)
-- User Windows: Release Core/CLI builds, full `scripts/regression-test.ps1` including cancel, simulated read/access errors, MaxFiles, size/time, close lifecycle.
-- User Windows: Release WPF build; UI fixture scan, browse, counters, manual log export, all three limit fields and blank/unlimited behavior.
-- User Windows: large directory (more than 18,000 results), mid-scan cancellation, restart after cancel, bounded UI log/export behaviors.
-- GitHub Actions: two passing checks for final M2 PR head `976b96617c018152d2a26974a0e2f725f0e7c04d`; Windows pipeline includes CLI & WPF Release builds and Core/CLI regression.
-- M2 merged with explicit user authorization. No need to re-merge PR #2.
+## Native suspended-launch groundwork — verified on Windows (2026-10-18)
+- `src/MiniAV.Engines.ClamAV/WindowsArgumentEncoding.cs`: Windows CreateProcess argv quoting; `NativeCommandLineTest` regression checks spaces/quotes/backslashes/Unicode and invalid NUL.
+- `src/MiniAV.Engines.ClamAV/WindowsChildPipe.cs`: owned anonymous pipe endpoints; child-only inheritance. `NativePipeRegression` checks both directions' handle flags and binary byte transfer.
+- `SuspendedLaunchRegression`: both Job-before-`ResumeThread` and failure cleanup tests integrated into `scripts/regression-test.ps1`.
+- `tests/MiniAV.ClamAV.Regression/NativeInheritedIoRegression.cs`: **opt-in only** `--native-io-test` fixture. Uses `STARTUPINFOEX`, `PROC_THREAD_ATTRIBUTE_HANDLE_LIST` for only the three stdio handles, `CreateProcessW(CREATE_SUSPENDED)`, Job assignment before `ResumeThread`, and redirected stdout/stderr via harmless `cmd.exe`.
+- **User-observed PASS:** `dotnet run --project .\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj -c Release -- --native-io-test` printed `Windows STARTUPINFOEX redirected child IO regression passed` after commit `4f9f9e3`. Earlier failure was **cmd.exe /c command-language quoting**, corrected in test-only command assembly; general argv encoder remains unchanged.
+- **User-observed PASS:** full `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1` after argument, pipe and byte-transfer checks: Core, ClamAV Job/process/fake-runner, Windows argument + pipe + suspended-launch tests, overall regression. **Note:** `--native-io-test` is separately opt-in and was passed afterward; it is not yet in the default regression suite.
+- CI last checked: commit `4f9f9e3` had one successful Windows run and another still in progress; latest documentation commit `e16691e` had two in progress. Recheck latest CI; do not infer completion from compilation-only CI (opt-in native I/O test is not default CI execution).
 
-## Known limitations / deferred work
-- No actual antivirus detection coverage; no ClamAV implementation yet.
-- WPF displayed and saved logs are bounded, possibly partial. A full streaming report requires a separate design and explicit opt-in.
-- Native UI automation, real ACL-denied integration, and manual CLI Ctrl+C checks may be added later; not represented as completed.
-- File system can change while hashing; scan results are point-in-time. No quarantine or remediation.
-- No claim of production-grade security certification or full testing.
+## Current milestone boundary
+**Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 
-## Next milestone: M3 (design in progress)
-1. Read this status, `docs/02_ARCHITECTURE.md`, `docs/03_SECURITY_MODEL.md`, `docs/05_DECISIONS.md`, `docs/06_ENGINEERING.md` and latest related code.
-2. M3 branch created from `main`; leave `main` stable.
-3. M3 design is in `docs/M3_CLAMAV_ADAPTER_DESIGN.md`; initial `src/MiniAV.Engines.ClamAV` process runner, parser, and `tests/MiniAV.ClamAV.Regression` fake-runner suite now exist on feature branch; implementation remains unverified until Windows CI/local tests. executable discovery/installation assumptions, process isolation, safe ArgumentList, scan inputs, structured result/error mapping, exit codes, timeouts/cancellation, resource caps.
-4. Review ClamAV licensing/distribution, signature source/authenticity, update/rollback and offline behavior before implementing updater.
-5. Initial fake-runner suite and adapter committed; `scripts/regression-test.ps1` includes new tests. Draft PR #3 is open. Run Windows CI/local checks; extend process cancellation/output-limit integration tests before accepting.
-6. Adapter is opt-in via CLI and WPF (engine selector, ClamAV executable and optional database folder); latest WPF implementation not yet CI/local UI verified. Keep feature optional/read-only. Validate ClamAV flags and resource policy with real executable before exposing UI; no silent Defender changes, download, quarantine or execution of scanned files.
+**Not completed:** production-grade reusable native launcher, all failure/timeout/cancellation paths, high-volume output caps and deadlock checks, descendant cleanup/orphan checks under native launch, repeated handle leak runs, real ClamAV compatibility with native launch, production `ClamProcessRunner` integration, post-integration full CLI/WPF and real-engine reacceptance. No proof of exhaustive malware coverage, DB provenance, hard CPU limit, filesystem snapshot, or OS sandbox.
 
-## Collaboration
-- ChatGPT is project architect/developer; user runs Windows verification.
-- Use feature branches and PRs, document code changes and real test outcomes.
-- Never commit personal files, malware samples, secrets, private scan logs, or quarantine content.
+## Next work (start here in new chat)
+1. Confirm branch head, Draft PR #3 state and GitHub CI. Review `NativeInheritedIoRegression.cs`, `WindowsChildPipe.cs`, `WindowsArgumentEncoding.cs`, `ClamProcessRunner.cs`, `ClamJob.cs` and `docs/M3_NATIVE_LAUNCHER_PLAN.md`.
+2. **M3.1:** extract/test reusable native launcher while preserving explicit stdio handle allowlist and the order `CreateProcessW(CREATE_SUSPENDED)` → Job assignment → `ResumeThread`. Add cancellation before/after resume, timeout, bounded pipe drain, deterministic fail-closed cleanup.
+3. **M3.2–3.3:** output flooding/limit, child and descendant killing, fail injection, handle-leak and repeated iterations; Windows CI + local tests. Respect nested Job errors; no unbounded fallback.
+4. **M3.4:** only after verified, replace production Process.Start runner; leave parsing, CLI/WPF behavior stable.
+5. **M3.5:** rerun full regression, real ClamAV harmless smoke, WPF engine selection, cancel/restart/close and manual export. Keep PR Draft until user authorizes merge.
 
-## Next-session starter
-"继续 MiniAV 项目。GitHub 仓库 richardlou12717/MiniAV；请先读取 main 的 PROJECT_STATUS.md，再读取必要架构文档与代码，从 M3 的 ClamAV 独立进程适配器方案开始。"
+Useful commands on user Windows:
+```powershell
+cd C:\Projects\MiniAV
+git switch feature/m3-clamav-adapter
+git pull --ff-only
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1
+dotnet run --project .\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj -c Release -- --native-io-test
+```
 
-## M3 implementation notes (2026-10-17)
-- New `src/MiniAV.Engines.ClamAV` implements `IScanEngine` with separate `clamscan.exe`, bounded process output, per-file timeout and process-tree termination on cancellation.
-- `tests/MiniAV.ClamAV.Regression` covers fake exit codes, spoofed output, errors, and Windows cmd.exe subprocess lifecycle (timeout/cancel/output-cap). Integrated into `scripts/regression-test.ps1` alongside a CLI missing-executable fail-closed test.
-- CLI opt-in via `--engine clamav --clamav-exe <absolute-path> [--clamav-db <absolute-directory>]`; previous `--path ... --db ...` still uses demo hash engine.
-- CI failure on `22d880a` was a test assertion string mismatch (`unverified` vs `not verified`), corrected in `03261d4`; one corrected-head Windows CI run succeeded. Later commits require new checks.
-- Known gaps: WPF opt-in not implemented; memory Job Object cap, actual ClamAV interoperability/scan-completeness, genuine coverage, real installation, database authenticity/freshness, and release-grade validation are NOT complete. Do not merge yet.
+## Documentation
+- `docs/M3_NATIVE_LAUNCHER_PLAN.md`: native launcher design, handle and cleanup contract (some earlier sections say prototype pending; user PASS is recorded above).
+- `docs/M3_WINDOWS_ACCEPTANCE.md`: chronological detailed local validation and limits.
+- `docs/M3_CLAMAV_ADAPTER_DESIGN.md`, `docs/02_ARCHITECTURE.md`, `docs/03_SECURITY_MODEL.md`, `docs/05_DECISIONS.md`, `docs/06_ENGINEERING.md`: earlier decisions and architecture.
 
-## M3 WPF wiring (2026-10-17)
-- WPF now has a Hash default / optional ClamAV selector, executable picker and optional database folder picker. Both front ends use the existing ScanCoordinator. WPF scan cancellation/close lifecycle still uses prior gate.
-- All code is feature-branch only, Draft PR #3. Windows CI already passed earlier adapter/CLI and child-process lifecycle tests; **the WPF integration commit has not yet been verified**, nor has actual installed ClamAV compatibility.
-- Next: validate latest Windows CI, test actual WPF UI interactions locally (select/reset, missing engine, cancel/close/restart, report labels), then assess ClamAV internal scan limits and release-grade memory/CPU caps. Keep `main` stable.
-
-## M3 safety hardening follow-up
-- Latest WPF implementation head `cab21b56` passed two Windows CI runs (2026-10-17 local / 2026-10-18 UTC). No real ClamAV execution yet.
-- ClamAV command now supplies `--alert-exceeds-max=yes` and maps `Heuristics.Limits.Exceeded` detections to `Error` (incomplete), not malware or NoMatch. Source: official clamscan man page. Regression added; latest CI pending.
-- Limit alerts cover certain internal scan limits only; not proof that every archive member was inspected. Real-engine interoperability, further scan-limit behavior, resources and Windows UI manual checks remain release gates.
-
-## M3 follow-up — acceptance planning
-- The latest passing Windows CI checks cover earlier WPF/CLI integration and the initial ClamAV scan-limit alert flag. Further follow-up test head may still be running.
-- Added specific limit-alert regression and `docs/M3_WINDOWS_ACCEPTANCE.md` with local CLI, WPF, and real ClamAV verification steps.
-- **Not yet implemented**: hard memory/CPU process cap, complete scan coverage attestation, verified real ClamAV installation/database, native WPF automation. PR #3 remains Draft.
-
-## M3 resource controls (in development)
-- Added Windows Job Object wrapper (`ClamJob.cs`), applies 2 GiB per-process committed-memory ceiling and kill-on-job-close, refuses an unbounded child on Job attachment failure. Commit `d7edb4b` and follow-up acceptance notes. **Latest Windows CI pending; manual tests not yet run**.
-- Limitations: post-Process.Start Job assignment permits short pre-assignment execution; no aggregate descendant memory limit, no hard CPU cap, no sandbox or evidence of bounded memory under real ClamAV. Do not merge until acceptance tests confirm these boundaries and the remaining risks are reviewed.
-
-## M3 Job aggregate limit follow-up
-- Added `JOB_OBJECT_LIMIT_JOB_MEMORY` (2 GiB aggregate Job committed memory) in addition to the previous per-process 2 GiB limit, branch commit `dfd821d1`. Latest CI not yet confirmed at time of writing. Not a CPU sandbox; startup-before-attachment race remains.
-
-## M3 direct Job verification (2026-10-17)
-- The prior head `96533de7` passed both Windows CI runs.
-- Added Windows-only direct Job Object regression using a harmless cmd.exe child: verify membership through `IsProcessInJob`, close the Job, and assert child exit. Regression uses `InternalsVisibleTo` for the test assembly. Latest CI pending.
-- This checks Job assignment and kill-on-close; it does **not** yet prove 2 GiB memory limit behavior under pressure, child-descendant aggregate enforcement, or a suspension-before-assignment guarantee. Real ClamAV remains unverified; retain Draft PR #3.
-
-## M3 CI diagnostic / repair (2026-10-18)
-- Commit `f0fcc7c3` failed both Windows CI runs during ClamAV regression test compilation: SYSLIB1062 / CS0227 caused by test-only `LibraryImport` requiring unsafe compilation. Core/CLI/WPF Release builds and the Core regressions succeeded in these runs.
-- Changed test P/Invoke from source-generated `LibraryImport` to standard `DllImport` in `dd0f25ef`, retaining the repository's no-unsafe compilation policy. CI for this repair was still running when checked.
-- Direct Job membership/kill-on-close test is NOT yet accepted until corrected CI passes. No memory-exhaustion or real ClamAV tests have been run.
-
-## M3 optional real-engine verification helper (2026-10-18)
-- Latest head `f4c7fca2` passed both Windows CI runs, including Job membership/kill-on-close regression.
-- Added `scripts/clamav-local-smoke.ps1` as **manual opt-in only** for a user-installed real ClamAV executable and optional signature folder. It tests a harmless, temporary text file and requires a clean result; it does not download binaries or run in CI.
-- Real ClamAV interoperability is still unverified until user executes this script and shares its result. Other open gates: memory exhaustion enforcement, pre-Job process startup race, signature/database provenance and ClamAV-specific partial-coverage behavior.
-
-## M3 mutation detection (2026-10-18)
-- Baseline head `acd42fa9` passed both Windows CI runs.
-- Added best-effort post-scan target file metadata comparison (length and modification timestamp). Detectable concurrent changes now return Error/incomplete, not NoMatch, and a deterministic fake-runner mutation regression is included. Latest CI pending.
-- Metadata equality does not prove file identity/content stability. Atomic snapshot or stream-based scan semantics, memory stress limits, real ClamAV interoperability and manual UI verification remain open.
-
-## Real ClamAV Windows 5.1 smoke-script repair (2026-10-18)
-- User confirmed official ClamAV 1.5.4 and database version 28157 installed; invoked `scripts/clamav-local-smoke.ps1` from Windows PowerShell 5.1 and hit `Path.IsPathFullyQualified` missing (script failed before scan).
-- Replaced unsupported API with PS5.1-compatible fully qualified path checks, and added a Windows PowerShell 5.1 parse check to regression runner. Latest CI pending; real ClamAV scan still not yet confirmed.
-
-## M3 real ClamAV integration milestone (2026-10-18)
-- User's Windows machine: ClamAV 1.5.4, signature database 28157 (reported by `clamscan.exe --version`), with separately installed official signatures.
-- After fixing PowerShell 5.1 compatibility, user ran `scripts/clamav-local-smoke.ps1 -ClamScanExe "C:\Program Files\ClamAV\clamscan.exe"`.
-- **Observed PASS:** `NO_MATCH` on a harmless temporary text fixture with spaces in its path; `SUMMARY Matched=0 NoMatch=1 Skipped=0 Errors=0`, process exit 0, script reported real ClamAV smoke success.
-- GitHub CI: both checks for `2fa8d84c` passed.
-- This confirms one real, installed ClamAV clean-file execution path, **not** detection of a safe test signature, malware coverage, internal limit handling under pressure, complete scan attestations, memory exhaustion behavior, or WPF real-engine UI acceptance. SignatureVersion output remains explicitly unverified; do not claim full production readiness.
-- Next: add safe EICAR *test string* detection scenario only with user approval/controlled test setup (may trigger Defender), inspect real ClamAV output parsing, WPF manual UI validation, and Job resource stress tests. PR #3 stays Draft.
-
-## M3 WPF manual acceptance — 2026-10-18
-- User validated WPF engine selector/controls, invalid executable fail-closed behavior, real ClamAV scan, cancellation/restart, close-during-scan/child cleanup, and manual log export; details and evidence classification are in `docs/M3_WINDOWS_ACCEPTANCE.md`.
-- Screenshot: missing ClamAV binary caused two errors and exit 3; real ClamAV scanned two harmless fixtures with NoMatch=2, Errors=0 and exit 0. No detection-coverage claim.
-- Next gate: controlled, low-budget Job Object memory-limit verification and further internal-coverage tests. No memory exhaustion proof or hard CPU cap yet. PR #3 remains Draft; main unchanged.
+## New-session starter (paste this)
+> 继续 MiniAV 项目。请从 GitHub 私有仓库 `richardlou12717/MiniAV` 的 **`feature/m3-clamav-adapter` 分支**读取最新 `PROJECT_STATUS.md`、`docs/M3_NATIVE_LAUNCHER_PLAN.md` 和相关代码。M3 原生 `STARTUPINFOEX` stdout/stderr 原型在 Windows 本机已通过 `--native-io-test`；现在继续 M3.1 生产级原生启动器的取消、超时与资源清理设计和实现。不要合并 Draft PR #3；保持 `main` 稳定。

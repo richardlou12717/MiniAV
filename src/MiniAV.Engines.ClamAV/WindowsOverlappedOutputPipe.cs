@@ -25,7 +25,7 @@ internal sealed class WindowsOverlappedOutputPipe : IDisposable
         _child = child;
     }
 
-    internal static WindowsOverlappedOutputPipe Create()
+    internal static async Task<WindowsOverlappedOutputPipe> CreateAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         // The random name is only a rendezvous identifier, not an authorization mechanism.
@@ -40,7 +40,7 @@ internal sealed class WindowsOverlappedOutputPipe : IDisposable
             var accepted = parent.WaitForConnectionAsync();
             child = new NamedPipeClientStream(".", name, PipeDirection.Out, PipeOptions.None);
             child.Connect(5000);
-            accepted.GetAwaiter().GetResult();
+            await accepted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             if (!SetHandleInformation(child.SafePipeHandle, HandleFlagInherit, HandleFlagInherit))
                 throw new Win32Exception(Marshal.GetLastWin32Error(),
                     "Could not mark native child writer inheritable.");

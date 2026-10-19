@@ -1,3 +1,8 @@
+if (args.Length > 0 && args[0] == "--native-overlapped-pipe-test")
+{
+    await NativeOverlappedPipeRegression.RunAsync();
+    return;
+}
 using MiniAV.Core;
 using System.Diagnostics;
 using System.Runtime.InteropServices;

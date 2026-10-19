@@ -123,3 +123,8 @@ Do not switch the production path until the native launcher handles `STARTUPINFO
 - User reran `scripts/regression-test.ps1` after suspended-launch regressions were included in the normal suite.
 - **PASS (user-observed):** Release build; six Core regressions; `Suspended-launch Job-before-resume regression passed`; `Suspended-launch failure-cleanup regression passed`; ClamAV Job membership/close, subprocess lifecycle, fake runner, and overall regression tests all passed.
 - This verifies only existing production behavior and isolated launch tests. Native suspended launch with redirected pipes is still unimplemented; no production race fix is claimed.
+
+### User Windows native pipe and argument regression — 2026-10-18
+- User reported successful `scripts/regression-test.ps1` Release build and all regressions after standalone `WindowsChildPipe` and `WindowsArgumentEncoding` tests were integrated.
+- **PASS (user-observed):** `Windows CreateProcess argument quoting regressions passed`, `Windows child pipe inheritance regressions passed`, both suspended launch tests, ClamAV Job membership/close, real subprocess lifecycle, fake runner, all Core regressions, final `Regression tests passed`.
+- Scope is standalone quoting/handle-inheritability verification; redirected process I/O and explicit `STARTUPINFOEX` handle list are not yet tested. Production `ClamProcessRunner` unchanged.

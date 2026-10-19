@@ -141,6 +141,12 @@
 - User reports `--native-launcher-test` PASS after commit `515c11a` changed cleanup to wait for Job kill completion before fallback TerminateProcess. This resolves the observed error 5 in the basic regression fixture, but does not establish that all cleanup races are eliminated.
 - Next run pre-resume failure, timeout/output-overflow descendants, exceptional-path repetition, and full regression with the new cleanup sequencing. Retain the synchronous pipe reader quiescence issue as production-integration blocker. PR #3 Draft and `main` unchanged.
 
+## M3.1 latest Windows acceptance (2026-10-19)
+- User confirmed native descendant timeout and output-overflow test PASS, exceptional repeat test PASS (baseline 267 handles; at 10=272 +5, 20=273 +6, 30=275 +8), and full `scripts/regression-test.ps1` PASS (Release build in 1.9 s, Core and ClamAV and Windows pipe/suspended-launch tests).
+- Earlier `--native-launcher-test` PASS after Job close/wait sequencing correction. The latest user message did not include `--native-pre-resume-failure-test` output, so do not record a new pass for that test; it passed in an earlier round.
+- Residual risk: cancellation semantics and reader quiescence of synchronous `CreatePipe` reads; bounded join alone is not a proof that tasks stop before stream disposal. Handle growth +8 is below diagnostic limit but not proof of absence of slow leaks.
+- Do not integrate native launcher into production `ClamProcessRunner` until robust pipe shutdown and cleanup error handling are verified. PR #3 remains Draft; main unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

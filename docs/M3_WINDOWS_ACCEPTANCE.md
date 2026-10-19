@@ -128,3 +128,8 @@ Do not switch the production path until the native launcher handles `STARTUPINFO
 - User reported successful `scripts/regression-test.ps1` Release build and all regressions after standalone `WindowsChildPipe` and `WindowsArgumentEncoding` tests were integrated.
 - **PASS (user-observed):** `Windows CreateProcess argument quoting regressions passed`, `Windows child pipe inheritance regressions passed`, both suspended launch tests, ClamAV Job membership/close, real subprocess lifecycle, fake runner, all Core regressions, final `Regression tests passed`.
 - Scope is standalone quoting/handle-inheritability verification; redirected process I/O and explicit `STARTUPINFOEX` handle list are not yet tested. Production `ClamProcessRunner` unchanged.
+
+### User Windows pipe transfer regression — 2026-10-18
+- User ran full `scripts/regression-test.ps1` after the bidirectional byte-transfer regression was introduced.
+- **PASS (user-observed):** Release build; Core tests; `Windows CreateProcess argument quoting regressions passed`; `Windows child pipe inheritance and byte-transfer regressions passed`; both suspended launch regressions; ClamAV Job membership/close, subprocess lifecycle, fake runner; overall regression.
+- This validates in-process pipe endpoint transfer, not yet `STARTUPINFOEX` process inheritance or real child I/O.

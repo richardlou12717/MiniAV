@@ -52,6 +52,11 @@
 - Updated repeated-run fixture to perform three warm-up runs and print handle counts every ten iterations (commit `31fadef`). Await local retest and check growth slope. If growth persists, investigate handle types and async Process/pipe lifetimes; do not weaken the guardrail or connect launcher to production.
 - Prior single-run native smoke PASSED. Production `ClamProcessRunner` still unchanged. PR #3 remains Draft, no merge.
 
+## M3.1 repeat-test Windows validation (2026-10-19)
+- User re-ran `--native-launcher-repeat-test` after cancellation-registration disposal and warm-up improvements: run 10 handles=256 (+2), run 20=257 (+3), run 30=258 (+4); baseline=254, final=258, delta=+4. Test PASS.
+- Compared with earlier un-warmed +50, the new result shows no comparable rapid growth over 30 launches, but different warm-up and implementation mean it does not conclusively identify the earlier root cause or prove leak freedom. Require longer/failure-path/descendant checks before production integration.
+- `ClamProcessRunner` is still unchanged; keep PR #3 Draft and `main` stable.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

@@ -112,6 +112,11 @@
 - Corrected both stdout and stderr FileStream constructors back to `isAsync:false` (commit `16df1e1`). Reader task join remains experimental and **must be revalidated**. Synchronous-backed pipe reads can still have cancellation/shutdown edge cases; do not claim deterministic reader quiescence from this correction.
 - Re-run `--native-launcher-test`, `--native-active-io-cancel-test`, `--native-descendant-failure-test` on Windows, followed by full regression. Do not integrate into production until cleanly verified. PR #3 stays Draft.
 
+## M3.1 post-correction Windows acceptance (2026-10-19)
+- User reports all three requested opt-in commands PASS after restoring `FileStream(isAsync:false)` for synchronous `CreatePipe` handles: `--native-launcher-test`, `--native-active-io-cancel-test`, and `--native-descendant-failure-test`. No logs beyond the PASS report were supplied.
+- This revalidates normal native launch, active I/O cancellation, and descendant cleanup on timeout/overflow after the correction. It does **not** establish deterministic cancellation of outstanding synchronous-backed pipe read tasks under every race, nor confirm a fresh full `regression-test.ps1` pass after this latest change.
+- Before production integration: explicitly verify reader quiescence, cleanup failure propagation, exceptional-path repetition, Windows CI and final full regression. Keep PR #3 Draft; `ClamProcessRunner` remains unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

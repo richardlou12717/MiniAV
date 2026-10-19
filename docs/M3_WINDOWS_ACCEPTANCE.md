@@ -133,3 +133,7 @@ Do not switch the production path until the native launcher handles `STARTUPINFO
 - User ran full `scripts/regression-test.ps1` after the bidirectional byte-transfer regression was introduced.
 - **PASS (user-observed):** Release build; Core tests; `Windows CreateProcess argument quoting regressions passed`; `Windows child pipe inheritance and byte-transfer regressions passed`; both suspended launch regressions; ClamAV Job membership/close, subprocess lifecycle, fake runner; overall regression.
 - This validates in-process pipe endpoint transfer, not yet `STARTUPINFOEX` process inheritance or real child I/O.
+
+### Native STARTUPINFOEX redirected I/O local test — 2026-10-18
+- **PASS (user-observed)**: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-io-test` printed `Windows STARTUPINFOEX redirected child IO regression passed` after commit `4f9f9e3` corrected cmd.exe `/c` syntax.
+- Standalone harmless cmd.exe fixture verifies three-endpoint explicit inheritance list, suspended creation, Job assignment before resume, stdout/stderr and completion. Not production scanner; cancellation, timeout, high-volume streams, orphan/handle-leak behavior and real ClamAV remain unverified for new launcher.

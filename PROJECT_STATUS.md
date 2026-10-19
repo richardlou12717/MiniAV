@@ -78,6 +78,11 @@
 - This is a first active-I/O cancellation test, not yet proof that both readers were busy when cancelled. Need stronger deterministic synchronization, timeout/overflow cleanup, and descendant checks.
 - Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-active-io-cancel-test` locally. Production runner remains unchanged.
 
+## M3.1 active I/O cancellation Windows acceptance (2026-10-19)
+- User ran `--native-active-io-cancel-test` and reported: `M3.1 active stdout/stderr cancellation regression passed`. Five repetitions completed without guard timeout or unexpected output-overflow error.
+- This does not prove both pipes were actively draining at the exact cancellation instant, that reader tasks have all quiesced, or that grandchildren are terminated; targeted instrumentation remains needed.
+- Next implement a descendant PID-marker fixture for cancellation, timeout, and output overflow, then verify no surviving child processes. Keep production runner unchanged and PR #3 Draft.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

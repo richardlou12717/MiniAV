@@ -53,3 +53,10 @@ Critical technical finding: `WindowsChildPipe.Create` uses `CreatePipe`, yieldin
 The other corrected native cleanup sequence is: close Job; wait for process exit; only if timeout attempt fallback termination and reconfirm process exit; report unsuccessful termination/wait fail closed. Immediate fallback previously produced Win32 Access Denied (5); after correction, native smoke, descendant timeout/overflow and 30-run exceptional fixtures passed on user Windows.
 
 **Remaining gates:** deterministic pipe-read task quiescence; native cleanup error/fault injection; long exceptional-path handle trend (last 30-run failure suite +8 handles); nested Job/denied-attach; Windows CI opt-in coverage; harmless real ClamAV native-launch smoke **after** integration; WPF/CLI acceptance. The production Process.Start-before-Job race remains open. PR #3 stays Draft, main untouched.
+
+## M3.1 overlapped output-pipe prototype — 2026-10-19 (Windows validation pending)
+
+- Added isolated `WindowsOverlappedOutputPipe` using a current-user-restricted, randomized-name `NamedPipeServerStream` configured with `PipeOptions.Asynchronous`. A connected child-side `NamedPipeClientStream` writer is explicitly marked inheritable; parent is an async server reader. This is a feasibility prototype and is **not** yet used by `WindowsSuspendedLauncher`.
+- Opt-in `--native-overlapped-pipe-test` checks child-writer handle inheritance, binary transfer, and cancellation of a pending read while its writer remains open. Run it on user Windows before integrating anything.
+- Pending gates: demonstrate server reader handle non-inheritance; validate a real suspended child via `STARTUPINFOEX` handle list; multiple distinct stdout/stderr pipes; abort-on-connection/setup errors; ensure cancellation and reader completion precede stream disposal, including child/descendant writers retaining endpoints.
+- The fixture does not yet establish deterministic child-process cleanup, OS-wide pipe-name race resistance, native launcher correctness, or exceptional-path regression. Do not connect this prototype to production; keep PR #3 Draft.

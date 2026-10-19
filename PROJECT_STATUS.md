@@ -107,6 +107,11 @@
 - Previous tests passed **before** this change; the new behavior has not yet been validated on Windows. Run `--native-launcher-test`, `--native-active-io-cancel-test`, `--native-descendant-failure-test`, and full `scripts/regression-test.ps1`. Watch for hangs, unexpected IOException, and exception masking.
 - Still outstanding: rigorous cleanup failure propagation (including native WaitForSingleObject failure), repeated exceptional paths, independent read-task observation, and final production integration. No change to production `ClamProcessRunner`; PR #3 Draft.
 
+## M3.1 Windows pipe handle regression and correction (2026-10-19)
+- User executed `--native-launcher-test` after async stream change and observed `ArgumentException: Handle does not support asynchronous operations` at `WindowsSuspendedLauncher.cs:87`. Root cause: `WindowsChildPipe.Create` uses Win32 `CreatePipe` (synchronous, not overlapped), so `FileStream(isAsync:true)` cannot wrap its parent handle.
+- Corrected both stdout and stderr FileStream constructors back to `isAsync:false` (commit `16df1e1`). Reader task join remains experimental and **must be revalidated**. Synchronous-backed pipe reads can still have cancellation/shutdown edge cases; do not claim deterministic reader quiescence from this correction.
+- Re-run `--native-launcher-test`, `--native-active-io-cancel-test`, `--native-descendant-failure-test` on Windows, followed by full regression. Do not integrate into production until cleanly verified. PR #3 stays Draft.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

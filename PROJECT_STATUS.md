@@ -1,8 +1,49 @@
 # MiniAV — Project Status / Cross-session Handoff
 
-**Updated:** 2026-10-18  
+**Updated:** 2026-10-19  
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
-**State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-18). **Do not merge without explicit user authorization.**
+**State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
+
+## CURRENT HANDOFF — read this section first (2026-10-19)
+
+**Current decision:** M3.1 isolated native launcher is extensively tested but **NOT production-ready**. Do not merge [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) or alter `main`; do not replace `ClamProcessRunner` until the remaining blockers are resolved.
+
+### What exists in this branch
+- `WindowsSuspendedLauncher.cs` (isolated): `CreateProcessW(CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT)`, `STARTUPINFOEX` explicit three-handle stdio allowlist, `ClamJob.Attach` before `ResumeThread`, bounded stdout/stderr, cancellation and deadline, kill-on-close Job and native process cleanup.
+- `WindowsChildPipe.Create` uses synchronous Win32 `CreatePipe`. **Keep FileStream `isAsync:false`**: trying `isAsync:true` caused an observed `ArgumentException` (handle not opened for overlapped I/O). The later bounded reader-join is **not proof** of deterministic cancellation/quiescence of a synchronous-backed pipe read.
+- Cleanup now closes Job and *waits for exit first*; only after a timeout attempts `TerminateProcess`, then confirms termination. Immediate TerminateProcess after Job close previously caused an observed Win32 error 5; the corrected ordering passed Windows tests. Native wait/terminate failures are reported as `IOException` (except remaining edge cases discussed below). Production scanner still uses `Process.Start` followed by Job assignment — **execution-before-Job race remains**.
+- Regression files: `NativeLauncherRegression.cs`, `NativeDescendantFailureRegression.cs`, `NativeFailureRepeatRegression.cs`, `NativeInheritedIoRegression.cs`, plus earlier suspended launch/pipe/Job tests. The new M3.1 tests are opt-in, not a substitute for the ordinary regression script.
+
+### User-confirmed Windows acceptance
+- `--native-io-test`: native redirected stdout/stderr with Job-before-resume — PASS.
+- `--native-launcher-test`: exit/output, cancellation, timeout, per-stream output limit — PASS **after** wait-before-terminate cleanup correction.
+- `--native-launcher-repeat-test`: 30 ordinary launches, warmed-up handle delta **+4**, PASS (early un-warmed +50 failure must not be erased).
+- `--native-pre-resume-failure-test`: injected failure after Job attachment before resume, no marker and no live suspended child — PASS earlier; **not rerun** in latest batch.
+- `--native-active-io-cancel-test`: 5 cancellations during ongoing-output fixture — PASS after restoring synchronous stream mode.
+- `--native-descendant-cancel-test`: cancellation removes sleeping descendant — PASS.
+- `--native-descendant-failure-test`: timeout and stdout/stderr overflow remove descendant — PASS, including after latest cleanup sequencing.
+- `--native-failure-repeat-test`: 30 alternating cancellation/timeout/overflow runs, baseline **267** handles, +5 at run 10, +6 at run 20, **+8 at run 30**, PASS; slow handle growth is *not* ruled out.
+- `scripts/regression-test.ps1`: latest user-observed **PASS** after cleanup sequencing fix, Release build 1.9s; Core, quoting, pipe transfer, suspended-launch, Job, ClamAV subprocess and fake-runner checks. The script does not necessarily run every optional M3.1 command.
+- Latest GitHub Windows CI lookup for earlier head `86018be`: **in_progress**; no green CI conclusion established for final handoff commits.
+
+### Blocking tasks — begin here next session
+1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
+2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.
+3. **M3.2–M3.3:** longer repeated exceptional-path/handle diagnostics, deliberate blocked I/O and adversarial child/descendant cases, nested Job/denied-assignment behavior, Windows CI execution of selected opt-in fixtures. A handle-delta threshold alone is not leak proof.
+4. **M3.4 (not started):** only after gates pass, integrate the native launcher into production `ClamProcessRunner` while retaining parser and CLI/WPF contracts; fail closed, no fallback to unsafe `Process.Start`.
+5. **M3.5 (not started):** full regressions, real ClamAV harmless-file check, WPF selection/cancel/restart/close/manual export, and PR review. **Keep Draft until explicit merge permission**.
+
+### Commands for next session (PowerShell, in `C:\Projects\MiniAV`)
+```powershell
+git switch feature/m3-clamav-adapter
+git pull --ff-only
+$project = ".\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj"
+dotnet run --project $project -c Release -- --native-launcher-test
+dotnet run --project $project -c Release -- --native-failure-repeat-test
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1
+```
+
+**New session prompt:** “继续 MiniAV 项目。读取私有仓库 `richardlou12717/MiniAV` 的 `feature/m3-clamav-adapter` 分支上最新 `PROJECT_STATUS.md` 的 CURRENT HANDOFF 及 `docs/M3_NATIVE_LAUNCHER_PLAN.md`。M3.1 的取消、超时、输出限额、子进程清理和30次异常重复测试均已有 Windows PASS，但同步 `CreatePipe` 管道的 reader task 确定性退出尚未解决。请从这一阻塞项继续，保持 PR #3 Draft，不合并 main。”
 
 ## Repository and working agreement
 - Private repo: https://github.com/richardlou12717/MiniAV

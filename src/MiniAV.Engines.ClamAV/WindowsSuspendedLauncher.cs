@@ -88,7 +88,22 @@ internal static class WindowsSuspendedLauncher
             var outTask = ReadBoundedAsync(outReader, maxCharsPerStream, token);
             var errTask = ReadBoundedAsync(errReader, maxCharsPerStream, token);
             var waitTask = child.WaitForExitAsync(token);
-            await Task.WhenAll(outTask, errTask, waitTask).ConfigureAwait(false);
+            // Do not use Task.WhenAll as the first await: on overflowing output, another
+            // synchronous-backed pipe read can remain blocked until Job termination.
+            // Observe each completion and return to finally immediately on any failure.
+            var pending = new List<Task> { outTask, errTask, waitTask };
+            var cancelled = Task.Delay(Timeout.InfiniteTimeSpan, token);
+            while (pending.Count != 0)
+            {
+                var completed = await Task.WhenAny(pending.Append(cancelled)).ConfigureAwait(false);
+                if (completed == cancelled)
+                {
+                    token.ThrowIfCancellationRequested();
+                    throw new OperationCanceledException(token);
+                }
+                await completed.ConfigureAwait(false);
+                pending.Remove(completed);
+            }
             token.ThrowIfCancellationRequested();
             return new Result(child.ExitCode, outTask.Result, errTask.Result);
         }

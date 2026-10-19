@@ -137,6 +137,10 @@
 - Changed cleanup order: close Job; wait for native process termination (5s); only on wait timeout call `TerminateProcess`; if fallback returns error, accept a concurrent exit only after successful process-signaled confirmation. Otherwise fail closed. Commit `515c11a`.
 - Re-run the single `--native-launcher-test` first. Other tests and production integration must wait until this regression is resolved. PR #3 Draft, `main` unchanged.
 
+## M3.1 cleanup wait-before-terminate Windows acceptance (2026-10-19)
+- User reports `--native-launcher-test` PASS after commit `515c11a` changed cleanup to wait for Job kill completion before fallback TerminateProcess. This resolves the observed error 5 in the basic regression fixture, but does not establish that all cleanup races are eliminated.
+- Next run pre-resume failure, timeout/output-overflow descendants, exceptional-path repetition, and full regression with the new cleanup sequencing. Retain the synchronous pipe reader quiescence issue as production-integration blocker. PR #3 Draft and `main` unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

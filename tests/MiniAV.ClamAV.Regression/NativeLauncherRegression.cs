@@ -101,6 +101,37 @@ internal static class NativeLauncherRegression
 
     private sealed class InjectedPreResumeException : Exception { }
 
+
+    // Stress cancellation while both pipe readers are consuming output.
+    // A deadline limits the whole fixture so regressions cannot hang the runner.
+    internal static async Task RunActiveIoCancellationAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var args = new[] { "-NoProfile", "-NonInteractive", "-Command",
+            "while ($true) { [Console]::Out.WriteLine('STDOUT_ACTIVE'); [Console]::Error.WriteLine('STDERR_ACTIVE'); Start-Sleep -Milliseconds 10 }" };
+        for (var i = 0; i < 5; ++i)
+        {
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(650));
+            using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe, args, null,
+                    768L * 1024 * 1024, 32768, TimeSpan.FromSeconds(10),
+                    cancellation.Token).WaitAsync(guard.Token);
+                throw new Exception("Active-I/O child ignored cancellation.");
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested && !guard.IsCancellationRequested) { }
+            catch (InvalidDataException)
+            {
+                // Unexpected flood is not acceptable: this fixture should cancel first.
+                throw new Exception("Active-I/O test exceeded output cap before cancellation.");
+            }
+        }
+        Console.WriteLine("M3.1 active stdout/stderr cancellation regression passed");
+    }
+
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

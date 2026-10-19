@@ -40,8 +40,11 @@ internal static class NativeInheritedIoRegression
                 throw new Win32Exception(Marshal.GetLastWin32Error());
 
             var cmd = Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe";
-            var line = new StringBuilder(WindowsArgumentEncoding.Build(cmd,
-                new[] { "/d", "/c", "echo NATIVE_STDOUT & echo NATIVE_STDERR 1>&2" }));
+            // cmd.exe /c parses a command language, not a regular argv element. Do not
+            // quote the entire command as WindowsArgumentEncoding would do.
+            // Keep the executable itself quoted and supplied as lpApplicationName.
+            var line = new StringBuilder(WindowsArgumentEncoding.Quote(cmd)
+                + " /d /c echo NATIVE_STDOUT & echo NATIVE_STDERR 1>&2");
             var startup = new StartupInfoEx
             {
                 StartupInfo = new StartupInfo

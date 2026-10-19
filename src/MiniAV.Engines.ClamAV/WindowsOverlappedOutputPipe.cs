@@ -16,6 +16,7 @@ internal sealed class WindowsOverlappedOutputPipe : IDisposable
     private readonly NamedPipeClientStream _child;
 
     internal Stream Parent => _parent;
+    internal Stream ChildWriter => _child;
     internal SafePipeHandle Child => _child.SafePipeHandle;
 
     private WindowsOverlappedOutputPipe(NamedPipeServerStream parent, NamedPipeClientStream child)

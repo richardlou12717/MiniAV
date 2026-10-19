@@ -25,3 +25,8 @@ Remove the interval in which `clamscan.exe` runs between `Process.Start()` and J
 
 ## Security qualifications
 Job Object is not an OS sandbox. Suspended process creation plus Job assignment reduces the launch-before-attachment race but does not establish executable authenticity, signature database authenticity/freshness, or complete scan coverage. CPU hard capping and robust input snapshot semantics remain separate decisions.
+
+## Implementation checkpoint — child pipe handles (2026-10-18)
+- Added `WindowsChildPipe` as a standalone disposable Windows anonymous pipe owner; only the designated child endpoint is inheritable. This is not yet passed to `CreateProcessW` and it is not a substitute for the planned explicit `STARTUPINFOEX` handle allowlist.
+- Added `NativePipeRegression` to the ordinary Windows test suite to verify parent/child inheritability flags in both stream directions. Windows CI and local behavior must pass before further integration.
+- Current production `ClamProcessRunner` remains unchanged. Next stage: explicit inherited handle list, safe stream ownership, stdout/stderr draining, and Job-before-resume lifecycle.

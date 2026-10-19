@@ -13,6 +13,13 @@ internal static class NativeLauncherRegression
         var args = new[] { "-NoProfile", "-NonInteractive", "-Command",
             "[Console]::Out.WriteLine('OK'); [Console]::Error.WriteLine('E')" };
         using var current = System.Diagnostics.Process.GetCurrentProcess();
+        // Warm up CLR/PowerShell interop before measuring persistent handle growth.
+        for (int i = 0; i < 3; i++)
+            await WindowsSuspendedLauncher.RunAsync(exe, args, null,
+                768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(20), CancellationToken.None);
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
         current.Refresh();
         var baseline = current.HandleCount;
         const int iterations = 30;
@@ -23,6 +30,13 @@ internal static class NativeLauncherRegression
             if (result.ExitCode != 0 || !result.StandardOutput.Contains("OK", StringComparison.Ordinal)
                 || !result.StandardError.Contains("E", StringComparison.Ordinal))
                 throw new Exception($"Native launcher repeated run failed at iteration {i}.");
+            if ((i + 1) % 10 == 0)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                current.Refresh();
+                Console.WriteLine($"M3.1 handles at run {i + 1}: {current.HandleCount}, delta={current.HandleCount - baseline}");
+            }
         }
         GC.Collect();
         GC.WaitForPendingFinalizers();

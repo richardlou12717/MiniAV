@@ -127,6 +127,11 @@
 - Handle growth is nonzero and continued over the last 20 iterations; this short diagnostic does **not** prove absence of a slow leak. Do not relax the threshold to dismiss that possibility. Further sustained checks and explicit reader completion/cleanup failure propagation are required before production integration.
 - No additional native launcher changes in this checkpoint. Keep PR #3 Draft and `main` unchanged.
 
+## M3.1 explicit process cleanup failure reporting (2026-10-19; Windows retest required)
+- Improved outer native process cleanup: close Job first; check process wait state rather than interpreting exit code 259 as always running; terminate if still active; wait up to 5s; surface failed native termination or wait as `IOException` with the underlying Win32 failure. Handle release remains in a nested finally even on errors. Commit `1d95b16`.
+- **Not yet locally validated.** Previous 30-run exceptional-path diagnostic PASS had +14 handles after warm-up and still needs longer investigation. Run `--native-launcher-test`, `--native-pre-resume-failure-test`, `--native-descendant-failure-test`, `--native-failure-repeat-test`, then `scripts/regression-test.ps1`. Do not infer reader task quiescence from success alone.
+- Remaining risk: synchronous `CreatePipe` reader-task cancellation may be non-deterministic. The inner bounded 5s join can report IOException but still disposes stream after it; must resolve before calling the launcher production-grade. ClamProcessRunner unchanged; PR #3 remains Draft.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

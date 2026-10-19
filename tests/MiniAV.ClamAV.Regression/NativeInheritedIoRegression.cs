@@ -78,7 +78,7 @@ internal static class NativeInheritedIoRegression
             await Task.WhenAll(child.WaitForExitAsync(deadline.Token), outTask, errTask);
             if (child.ExitCode != 0 || !outTask.Result.Contains("NATIVE_STDOUT", StringComparison.Ordinal)
                 || !errTask.Result.Contains("NATIVE_STDERR", StringComparison.Ordinal))
-                throw new Exception("Native redirected IO or process result unexpected.");
+                throw new Exception($"Native redirected IO mismatch: exit={child.ExitCode}; stdout={System.Text.Json.JsonSerializer.Serialize(outTask.Result)}; stderr={System.Text.Json.JsonSerializer.Serialize(errTask.Result)}");
             Console.WriteLine("Windows STARTUPINFOEX redirected child IO regression passed");
         }
         finally

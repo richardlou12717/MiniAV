@@ -19,8 +19,19 @@ internal static class NativePipeRegression
                 throw new Exception("FAIL: parent pipe endpoint is inheritable");
             if (!IsInheritable(pipe.Child))
                 throw new Exception("FAIL: child pipe endpoint is not inheritable");
+            // Exercise each direction with small harmless binary data before closing handles.
+            // No child process is launched in this fixture.
+            var expected = new byte[] { 0, 1, 2, 127, 128, 255 };
+            using var writer = new FileStream(childReads ? pipe.Parent : pipe.Child, FileAccess.Write, 4096, false);
+            using var reader = new FileStream(childReads ? pipe.Child : pipe.Parent, FileAccess.Read, 4096, false);
+            writer.Write(expected);
+            writer.Flush();
+            var actual = new byte[expected.Length];
+            reader.ReadExactly(actual);
+            if (!actual.AsSpan().SequenceEqual(expected))
+                throw new Exception("FAIL: pipe payload round-trip mismatch");
         }
-        Console.WriteLine("Windows child pipe inheritance regressions passed");
+        Console.WriteLine("Windows child pipe inheritance and byte-transfer regressions passed");
     }
 
     private static bool IsInheritable(SafeFileHandle handle)

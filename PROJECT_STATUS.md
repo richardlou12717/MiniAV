@@ -97,6 +97,11 @@
 - To validate: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-descendant-failure-test`.
 - **Not yet tested on Windows.** Further work remains on in-flight pipe reader shutdown, explicit cleanup failure reporting, repeated exceptional stress, and production integration. ClamProcessRunner unchanged; PR #3 Draft and main untouched.
 
+## M3.1 timeout and output-overflow descendant Windows acceptance (2026-10-19)
+- User ran `--native-descendant-failure-test` and observed all three PASS lines: timeout descendant cleanup, output-overflow descendant cleanup, and combined fixture.
+- Alongside earlier cancellation descendant PASS, the three primary failure causes now have isolated Windows fixture coverage showing no surviving sleeping descendant after launcher return. This is not proof of exhaustive process-tree cleanup in every environment.
+- Next: guarantee concurrent stdout/stderr readers terminate before disposing their streams, surface cleanup failures deterministically, and add exceptional-path repeat diagnostics. Do not switch production `ClamProcessRunner` until these pass. Keep PR #3 Draft and `main` unchanged.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

@@ -57,6 +57,11 @@
 - Compared with earlier un-warmed +50, the new result shows no comparable rapid growth over 30 launches, but different warm-up and implementation mean it does not conclusively identify the earlier root cause or prove leak freedom. Require longer/failure-path/descendant checks before production integration.
 - `ClamProcessRunner` is still unchanged; keep PR #3 Draft and `main` stable.
 
+## M3.1 full regression acceptance (2026-10-19)
+- User ran `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1` on Windows and reported PASS (Release build, Core cancellation/read-error/limits/window lifecycle, Windows argument quoting and pipe inheritance/byte transfer, suspended Job-before-resume and failure cleanup, ClamAV Job membership, real subprocess and fake runner). Build succeeded in 2.3s.
+- Combined with the opt-in 30-run diagnostic (+4 handles after warm-up), M3.1 baseline is stable enough to begin targeted failure-path regressions, **not** production integration. The native launcher remains isolated from production `ClamProcessRunner`.
+- Remaining: native cancellation/timeout child-descendant termination assertions, injected failure before resume, reading-task shutdown after overflow, repeated exceptional paths and hard cleanup reporting. Draft PR #3 only.
+
 ## Current milestone boundary
 **Completed:** design; ClamAV feature adapter; opt-in CLI/WPF and earlier local smoke; Job memory cap and stress tests; native Windows argv/pipes standalone tests; suspended Job-before-resume and cleanup; working standalone `STARTUPINFOEX` redirected stdout/stderr prototype.
 

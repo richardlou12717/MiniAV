@@ -19,7 +19,8 @@ internal static class WindowsSuspendedLauncher
 
     internal static async Task<Result> RunAsync(string executable, IReadOnlyList<string> args,
         string? workingDirectory, long jobMemoryLimitBytes, int maxCharsPerStream,
-        TimeSpan timeout, CancellationToken cancellationToken)
+        TimeSpan timeout, CancellationToken cancellationToken,
+        Action<int>? beforeResumeTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -73,6 +74,9 @@ internal static class WindowsSuspendedLauncher
             // The suspended process must be terminated if anything below fails.
             child = Process.GetProcessById(checked((int)native.ProcessId));
             job = ClamJob.Attach(child, jobMemoryLimitBytes);
+            // Test-only injection runs after Job attachment but before any child code.
+            // A throwing callback exercises cleanup of a still-suspended process.
+            beforeResumeTestHook?.Invoke(checked((int)native.ProcessId));
             token.ThrowIfCancellationRequested();
             if (ResumeThread(native.ThreadHandle) != 1)
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "ResumeThread failed.");

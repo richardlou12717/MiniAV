@@ -49,6 +49,58 @@ internal static class NativeLauncherRegression
         Console.WriteLine("M3.1 repeated native launcher regression passed");
     }
 
+
+    // Verify a failure after Job assignment but before ResumeThread cannot execute
+    // the child or leave a suspended orphan. Uses only a harmless file marker.
+    internal static async Task RunPreResumeFailureAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var marker = Path.Combine(Path.GetTempPath(), "miniav-native-pre-resume-" +
+            Guid.NewGuid().ToString("N") + ".txt");
+        int pid = 0;
+        try
+        {
+            var escaped = marker.Replace("'", "''", StringComparison.Ordinal);
+            var argv = new[] { "-NoProfile", "-NonInteractive", "-Command",
+                $"[IO.File]::WriteAllText('{escaped}', 'executed')" };
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe, argv, null,
+                    768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(20),
+                    CancellationToken.None, childPid =>
+                    {
+                        pid = childPid;
+                        throw new InjectedPreResumeException();
+                    });
+                throw new Exception("Injected pre-resume failure was ignored.");
+            }
+            catch (InjectedPreResumeException) { }
+
+            if (pid <= 0) throw new Exception("Pre-resume injection was not reached.");
+            if (File.Exists(marker))
+                throw new Exception("Suspended child executed before resume.");
+            try
+            {
+                using var process = System.Diagnostics.Process.GetProcessById(pid);
+                if (!process.HasExited)
+                    throw new Exception($"Suspended child still alive after cleanup: pid={pid}.");
+            }
+            catch (ArgumentException)
+            {
+                // OS already removed the terminated process from the process table.
+            }
+            Console.WriteLine("M3.1 pre-resume fault injection and suspended-child cleanup passed");
+        }
+        finally
+        {
+            if (File.Exists(marker)) File.Delete(marker);
+        }
+    }
+
+    private sealed class InjectedPreResumeException : Exception;
+
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

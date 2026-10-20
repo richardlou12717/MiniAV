@@ -276,6 +276,50 @@ internal static class NativeOverlappedPipeRegression
         Console.WriteLine("M3.2 native original and cleanup exception preservation passed");
     }
 
+    // Real suspended/Job/overlapped launcher with a deterministic post-read hold.
+    // The real read has completed; its task completion is held to force the actual
+    // launcher cleanup join timeout without relying on unpredictable OS stalls.
+    internal static async Task RunForcedDeferredJoinAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ownerObserved = new TaskCompletionSource<DeferredReaderCleanup>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(900));
+        try
+        {
+            Console.WriteLine("M3.2 forced launcher join stage: running");
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe,
+                    new[] { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 30" },
+                    null, 768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(15),
+                    cancellation.Token, useOverlappedOutputPipes: true,
+                    holdStdoutCompletionTestHook: () => release.Task,
+                    readerJoinTimeoutTestOverride: TimeSpan.FromMilliseconds(150),
+                    deferredOwnerTestHook: owner => ownerObserved.TrySetResult(owner))
+                    .WaitAsync(TimeSpan.FromSeconds(15));
+                throw new Exception("Forced reader join timeout unexpectedly succeeded.");
+            }
+            catch (IOException ex) when (ex.Message.Contains("deferred", StringComparison.Ordinal)) { }
+            var owner = await ownerObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            if (!owner.WasDeferred || owner.ResourcesDisposed)
+                throw new Exception("Real launcher disposed owned streams before held reader completion.");
+            Console.WriteLine("M3.2 forced launcher join stage: retained resources confirmed");
+            release.SetResult();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (!owner.ResourcesDisposed)
+                await Task.Delay(10, deadline.Token);
+            Console.WriteLine("M3.2 real launcher join timeout deferred cleanup passed");
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
+    }
+
     private static System.Diagnostics.Process? TryGetProcess(int pid)
     {
         try { return System.Diagnostics.Process.GetProcessById(pid); }

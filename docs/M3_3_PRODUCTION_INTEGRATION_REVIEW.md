@@ -14,8 +14,8 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 ### P0. Reader quiescence if underlying kernel I/O never completes
 `DeferredReaderCleanup` preserves dependent streams until reader tasks reach terminal state, and returns failure on a bounded join. It does not force a permanently stuck kernel read to complete: resources can remain retained indefinitely. Clarify guarantees for overlapped cancellation and teardown, and inject a genuine retained-writer/blocked-read failure separate from a test-only completion gate.
 
-### P1. Timeout fault aggregation
-`WindowsSuspendedLauncher` converts timeout cancellation to `TimeoutException` in a dedicated catch preceding `catch(Exception)`. Confirm both original timeout and a subsequent process-cleanup failure are retained, rather than masked. Add fault injection and assert exact exception nesting, including original stack.
+### P1. Timeout fault aggregation — RESOLVED; Windows PASS 2026-10-20
+`WindowsSuspendedLauncher` converts timeout cancellation to `TimeoutException` in a dedicated catch preceding `catch(Exception)`. The dedicated timeout catch now captures the timeout into `originalFailure` rather than throwing immediately. Added `--native-timeout-cleanup-double-fault-test` that asserts timeout and cleanup failure remain present; user reported Windows PASS on 2026-10-20. The test injects a post-confirmed-cleanup fault, not a real failed native CloseHandle.
 
 ### P1. Output-limit exception compatibility
 `WindowsSuspendedLauncher.ReadBoundedAsync` uses `InvalidDataException` for overflow, while production `ClamProcessRunner` uses `ProcessOutputLimitException` and `ClamAvScanEngine` translates it to ScanStatus.Error. Introduce an explicit error taxonomy/translation at the future adapter boundary; do not change production handling before verified compatibility tests.
@@ -30,7 +30,7 @@ The isolated native launcher defaults to synchronous anonymous `CreatePipe` mode
 Deferred disposal results are inspectable via `CleanupCompletion` and traced, but no durable production diagnostic contract is implemented. Review run status for the current head rather than inferring from earlier runs; current lookup for commit `369dbaf` returned Windows CI `in_progress`, not a PASS. Require fresh Windows CI, full Core and ClamAV regression suites, real harmless ClamAV smoke with correct argv/exit/status behavior, and WPF cancellation/restart/close before considering PR ready.
 
 ## Ordered next work
-1. Build targeted timeout + cleanup-double-fault regression and repair exception preservation if needed.
+1. **Complete:** targeted timeout + cleanup-double-fault regression, original timeout preservation, user-reported Windows PASS.
 2. Design/test observable `ClamJob` handle-close behavior, including live descendant verification, without swallowing native errors.
 3. Define native-launch adapter error translations; test exit codes 0/1/2, stdout/stderr, overflow and timeout semantics.
 4. Validate genuine blocked overlapped I/O teardown; investigate all unresolved owner lifetimes.

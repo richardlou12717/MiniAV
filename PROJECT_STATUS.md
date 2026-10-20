@@ -1,8 +1,40 @@
 # MiniAV — Project Status / Cross-session Handoff
 
-**Updated:** 2026-10-19  
+**Updated:** 2026-10-20  
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
+
+## CURRENT HANDOFF — 2026-10-20 (LATEST; start here)
+
+**Branch:** `feature/m3-clamav-adapter` in public GitHub repository `richardlou12717/MiniAV`; [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) must remain Draft/unmerged. `main` retains M0–M2. Do not switch the production `ClamProcessRunner` without explicit review and Windows acceptance. The shipping runner still uses `Process.Start` before `ClamJob.Attach` (startup race). Experimental `WindowsSuspendedLauncher` attaches Job before resume but is **not integrated**.
+
+**Milestone:** M3.2 diagnostics validated; M3.3 production-integration safety hardening active. **Most recent user Windows acceptance:** `--native-timeout-cleanup-double-fault-test` PASS on 2026-10-20. User's brief "通过了" did not distinguish whether the separately requested `--native-overlapped-failure-test` was rerun; prior PASS remains valid, no new PASS asserted.
+
+**Recent GitHub commits (chronological):**
+- `3f204a1` deferred-disposal error observability; `1caa209` 80-iteration overlapped stress suite.
+- `369dbaf` recorded Windows stress PASS; 80 rounds handle-count deltas at rounds 20/40/60/80 were **−1, +4, +9, +8**, respectively (final +8; no proof of leak freedom).
+- `414c0e8` M3.3 safety review document; `071772d` native timeout+cleanup double-fault fix and new opt-in regression.
+- `888ddc9` recorded Windows PASS for timeout+cleanup double fault. Earlier deferred cleanup observability and exactly-once resource ownership also Windows PASS.
+
+**Known-good opt-in Windows diagnostics:** `--native-reader-deferred-cleanup-test` (two PASS lines: disposal fault visibility and exactly-once ownership); `--native-overlapped-stress-test` (80 runs PASS, +8 final handles); `--native-timeout-cleanup-double-fault-test` (PASS). Older tests documented below include suspended stdio, pre-resume faults, cancellation, timeout, flood, Job descendants, retained writer, forced reader join, cleanup faults, and repeated failure paths.
+
+**Prioritized next tasks (no pending code change required for handoff):**
+1. **P0:** fix `ClamJob.Dispose()` ignoring return value of Win32 `CloseHandle`; design testable failure reporting without double-close or assuming a post-close synthetic fault equals an actual failing native close. Preserve exception context during `ClamJob.Attach` failures; avoid modifying production runner behavior until tested.
+2. **P0:** address possibility of actual permanently blocked reader/kernel I/O despite `DeferredReaderCleanup` retained ownership. Verify overlapped cancellation and terminal resource release with real retained writer; no assumption that bounded join alone proves quiescence.
+3. **P1:** specify adapter mapping for native `InvalidDataException` output overflow to production `ProcessOutputLimitException`, and ensure the future integration explicitly opts into overlapped output pipes. Review argv, 0/1/2 exit codes, stderr, memory Job and abort paths.
+4. Check fresh Windows CI for **current branch HEAD**, then run core/ClamAV complete regression, real harmless ClamAV smoke and WPF cancel/restart/close before proposing integration. Previous Actions status `in_progress` was **not CI PASS**.
+
+**Source:** `docs/M3_3_PRODUCTION_INTEGRATION_REVIEW.md` and earlier sections below. Review notes were written before the timeout fix; the timeout preservation issue has now been resolved and locally accepted. Other blockers remain.
+
+**Start commands (Windows PowerShell):**
+```powershell
+cd C:\Projects\MiniAV
+git switch feature/m3-clamav-adapter
+git pull --ff-only
+$project = ".\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj"
+dotnet run --project $project -c Release -- --native-timeout-cleanup-double-fault-test
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\regression-test.ps1
+```
 
 ## CURRENT HANDOFF — read this section first (2026-10-19)
 
@@ -405,4 +437,4 @@ dotnet run --project .\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.c
 - `docs/M3_CLAMAV_ADAPTER_DESIGN.md`, `docs/02_ARCHITECTURE.md`, `docs/03_SECURITY_MODEL.md`, `docs/05_DECISIONS.md`, `docs/06_ENGINEERING.md`: earlier decisions and architecture.
 
 ## New-session starter (paste this)
-> 继续 MiniAV 项目。请从 GitHub 私有仓库 `richardlou12717/MiniAV` 的 **`feature/m3-clamav-adapter` 分支**读取最新 `PROJECT_STATUS.md`、`docs/M3_NATIVE_LAUNCHER_PLAN.md` 和相关代码。M3 原生 `STARTUPINFOEX` stdout/stderr 原型在 Windows 本机已通过 `--native-io-test`；现在继续 M3.1 生产级原生启动器的取消、超时与资源清理设计和实现。不要合并 Draft PR #3；保持 `main` 稳定。
+> 继续 MiniAV 项目。请先阅读本文件顶部的 2026-10-20 最新交接，以及 docs/M3_3_PRODUCTION_INTEGRATION_REVIEW.md。当前 M3.3，优先修复 ClamJob.Dispose 忽略 CloseHandle 失败的问题。仓库现已公开，但 PR #3 仍为 Draft；不改 main、不直接替换生产 Runner。\n\n> （旧交接，仅供历史参考）继续 MiniAV 项目。请从 GitHub 私有仓库 `richardlou12717/MiniAV` 的 **`feature/m3-clamav-adapter` 分支**读取最新 `PROJECT_STATUS.md`、`docs/M3_NATIVE_LAUNCHER_PLAN.md` 和相关代码。M3 原生 `STARTUPINFOEX` stdout/stderr 原型在 Windows 本机已通过 `--native-io-test`；现在继续 M3.1 生产级原生启动器的取消、超时与资源清理设计和实现。不要合并 Draft PR #3；保持 `main` 稳定。

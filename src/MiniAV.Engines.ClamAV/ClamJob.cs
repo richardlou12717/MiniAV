@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.ExceptionServices;
 
 namespace MiniAV.Engines.ClamAV;
 
@@ -18,6 +19,9 @@ internal sealed class ClamJob : IDisposable
     private IntPtr handle;
 
     private ClamJob(IntPtr job) => handle = job;
+
+    // Test-only invalid handle; never attach a live process to this instance.
+    internal static ClamJob FromInvalidHandleForTest() => new(new IntPtr(-1));
 
     public static ClamJob Attach(Process process, long maxProcessMemoryBytes)
     {
@@ -47,9 +51,16 @@ internal sealed class ClamJob : IDisposable
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Failed to place ClamAV process in Job Object.");
             return scope;
         }
-        catch
+        catch (Exception attachFailure)
         {
-            scope.Dispose();
+            try { scope.Dispose(); }
+            catch (Exception closeFailure)
+            {
+                throw new AggregateException(
+                    "Job attachment failed and its handle could not be closed.",
+                    attachFailure, closeFailure);
+            }
+            ExceptionDispatchInfo.Capture(attachFailure).Throw();
             throw;
         }
     }
@@ -57,7 +68,12 @@ internal sealed class ClamJob : IDisposable
     public void Dispose()
     {
         var h = Interlocked.Exchange(ref handle, IntPtr.Zero);
-        if (h != IntPtr.Zero) CloseHandle(h);
+        if (h == IntPtr.Zero) return;
+        // Ownership is consumed before the native call: after a failed close the
+        // handle's state is ambiguous, and retrying could close a reused handle.
+        if (!CloseHandle(h))
+            throw new Win32Exception(Marshal.GetLastWin32Error(),
+                "Closing the ClamAV Job Object handle failed; descendant termination is not confirmed.");
     }
 
     [StructLayout(LayoutKind.Sequential)]

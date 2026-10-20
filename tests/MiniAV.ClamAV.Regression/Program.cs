@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-overlapped-failure-test")
+{
+    await NativeOverlappedPipeRegression.RunLauncherFailuresAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-overlapped-launcher-test")
 {
     await NativeOverlappedPipeRegression.RunLauncherAsync();

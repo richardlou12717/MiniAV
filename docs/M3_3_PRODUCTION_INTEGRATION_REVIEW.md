@@ -6,10 +6,17 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 Job close work (2026-10-20, awaiting Windows acceptance)
+- `ClamJob.Dispose` now checks the Boolean result of native `CloseHandle` and throws a `Win32Exception` with the captured error; ownership is atomically consumed before attempting close, so failed-close state is not retried or mistaken for success. The design cannot reliably recover an ambiguously closed native handle.
+- `ClamJob.Attach` now preserves both original attach/configuration error and any close error in an `AggregateException`.
+- Isolated `WindowsSuspendedLauncher` outer cleanup now continues to wait for or terminate the **direct child** after a Job close exception and preserves multiple cleanup faults. This does not establish descendant termination on failed Job close.
+- Added opt-in `--native-job-close-error-test`: `ClamJob.FromInvalidHandleForTest` uses a nonzero invalid handle to trigger genuine Win32 `CloseHandle` failure (expected `ERROR_INVALID_HANDLE=6`); second Dispose is inert. No child is attached during this negative-path test. Existing ordinary Job test covers successful Job-close child termination. **No Windows PASS yet.**
+- Changes committed on feature branch; production runner and main untouched. Build/CI and native test results pending. Run focused test and full regression before any further integration.
+
 ## Release-blocking findings
 
-### P0. Native Job close failure is not observable
-`ClamJob.Dispose` exchanges its handle to zero and invokes Win32 `CloseHandle` without inspecting the Boolean result. This makes the assertion “Job close succeeded/terminated descendants” incomplete for native-error scenarios. Design a close method that captures `GetLastWin32Error`, propagates failure without attempting a dangerous second close of an ambiguous handle, and demonstrates child termination/cleanup guarantees under faults. Avoid treating a synthetic post-close exception as a real failing Win32 close.
+### P0. Native Job close failure observability — implementation committed; Windows test pending
+Previously, `ClamJob.Dispose` exchanged its handle to zero and invoked Win32 `CloseHandle` without inspecting the Boolean result. This makes the assertion “Job close succeeded/terminated descendants” incomplete for native-error scenarios. Design a close method that captures `GetLastWin32Error`, propagates failure without attempting a dangerous second close of an ambiguous handle, and demonstrates child termination/cleanup guarantees under faults. Avoid treating a synthetic post-close exception as a real failing Win32 close.
 
 ### P0. Reader quiescence if underlying kernel I/O never completes
 `DeferredReaderCleanup` preserves dependent streams until reader tasks reach terminal state, and returns failure on a bounded join. It does not force a permanently stuck kernel read to complete: resources can remain retained indefinitely. Clarify guarantees for overlapped cancellation and teardown, and inject a genuine retained-writer/blocked-read failure separate from a test-only completion gate.

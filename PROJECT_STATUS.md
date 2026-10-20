@@ -87,6 +87,13 @@
 - The stronger fixture may reveal that the existing PowerShell child setup does not preserve the pipes or does not exit as expected: **do not weaken the assertion to manufacture a pass**. Use `--native-overlapped-retained-writer-test` and capture the last stage and exception. No Windows PASS has been obtained for this revision.
 - Production runner unchanged; PR #3 Draft and main untouched. Remaining: failed-reader-join disposal safety, cleanup fault injection, longer handle diagnostics, CI.
 
+### M3.2 strengthened parent-exit / pending-readers Windows PASS (2026-10-19)
+
+- User reported **PASS** for the strengthened `--native-overlapped-retained-writer-test` after commit `cd2921e`. The fixture requires a descendant PID marker, observes the direct parent's process-wait completion **while both stdout and stderr reader tasks remain pending**, then requests cancellation. It requires both reader tasks to become terminal before stream disposal and verifies the marked descendant exited before defensive fixture cleanup.
+- This establishes the observable adversarial behavior (parent exited while output pipes did not reach EOF) and cleanup for this tested execution. It does not independently inspect the descendant's Windows handle table, establish all handle-inheritance variants, guarantee reader quiescence on failed join, or prove leak freedom.
+- Next gates: explicitly protect stream ownership if reader joining fails; native wait/terminate and cleanup fault injection with original exception preserved; longer stress/handle trend, nested Job policy, CI, then production integration only after authorization and evidence.
+- `ClamProcessRunner` remains unchanged. PR #3 stays Draft; do not merge main.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

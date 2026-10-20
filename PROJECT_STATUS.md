@@ -33,6 +33,13 @@
 - Next first command (after pull): `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-overlapped-pipe-test`. Report failures verbatim, especially construction/connection, inheritance, and cancellation. If PASS, build a suspended-child end-to-end fixture before switching native launcher streams.
 - Still required: reader task quiescence under cancellation/timeout/overflow, process/Job and stream cleanup error injection, longer failure-repeat diagnostics, Windows CI confirmation. Keep PR #3 Draft, do not merge main.
 
+### M3.1 overlapped pipe Windows acceptance (2026-10-19)
+
+- User reran opt-in `--native-overlapped-pipe-test` after commit `e4d026b` (read is scheduled before write) and reported **PASS**.
+- Earlier first attempt hung without output, then instrumented attempt reached `M3.1 pipe stage: write` and timed out. The fixture now starts the read before the write, and the user reports success.
+- This PASS covers a single in-process named-pipe byte transfer and cancellation of a pending asynchronous parent read while the writer remains open. It is NOT a suspended native child/STARTUPINFOEX/Job test and does NOT prove entire launcher or descendant cleanup.
+- Next: build an **isolated** end-to-end STARTUPINFOEX suspended child fixture with two independently connected overlapped stdout/stderr pipes, explicit inherited-handle allowlist, Job-before-resume, and cancellation/timeout/flood/retained-descendant-writer cases. Verify reader task completion before disposing streams. Preserve original/cleanup failures separately. Leave production runner untouched and PR #3 Draft.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

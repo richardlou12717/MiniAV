@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 Windows fixture correction (2026-10-20)
+The first Windows run of `--native-job-close-error-test` failed because the fixture used `-1`, which is the current-process pseudo-handle on Windows, not a reliable failing `CloseHandle` input. Changed to a deliberately unaligned non-pseudo value `0x12345` (commit `4e497d8`). User rerun pending; do not claim CloseHandle error-path PASS.
+
 ## M3.3 Job close work (2026-10-20, awaiting Windows acceptance)
 - `ClamJob.Dispose` now checks the Boolean result of native `CloseHandle` and throws a `Win32Exception` with the captured error; ownership is atomically consumed before attempting close, so failed-close state is not retried or mistaken for success. The design cannot reliably recover an ambiguously closed native handle.
 - `ClamJob.Attach` now preserves both original attach/configuration error and any close error in an `AggregateException`.

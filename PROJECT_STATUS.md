@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 Windows close-error acceptance — 2026-10-20
+- User reported **PASS** after correcting the `--native-job-close-error-test` invalid-handle fixture to non-pseudo `0x12345` (commit `4e497d8`). The test exercises a real failing `CloseHandle` and verifies one-way handle ownership/no repeated close.
+- User's brief “通过” does **not independently establish** full `scripts/regression-test.ps1` PASS; that remains pending. This invalid-handle fixture does not simulate a live Job close failure with descendants, so cannot establish process-tree termination under that fault.
+- Next: full Windows regression; then separate live Job/descendant fault behavior and original-plus-cleanup-error preservation. Keep Draft PR #3 unmerged and production runner unchanged.
+
 ## M3.3 Windows regression correction — 2026-10-20 (NEWEST)
 - User ran `--native-job-close-error-test` after commit `8235026` and it **FAILED** with `Invalid native Job handle close did not fail` at Program.cs:13. The test helper used `new IntPtr(-1)`, but -1 is the Windows current-process pseudo-handle: it was not a valid invalid-handle failure fixture.
 - Corrected helper to use the intentionally unaligned non-pseudo value `0x12345` in commit `4e497d8`. This correction is **awaiting Windows rerun**. If it still fails, investigate the actual Win32 close result rather than weakening the test.

@@ -44,6 +44,26 @@ internal static class NativeOverlappedPipeRegression
         Console.WriteLine("M3.1 overlapped output pipe cancellation and transfer passed");
     }
 
+    // End-to-end Windows suspended process smoke, still opt-in and non-production.
+    internal static async Task RunLauncherAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        Console.WriteLine("M3.1 overlapped launcher stage: start suspended child");
+        var args = new[] { "-NoProfile", "-NonInteractive", "-Command",
+            "[Console]::Out.WriteLine('OVERLAPPED_OUT'); [Console]::Error.WriteLine('OVERLAPPED_ERR'); exit 2" };
+        var result = await WindowsSuspendedLauncher.RunAsync(exe, args, null,
+            768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(20),
+            CancellationToken.None, useOverlappedOutputPipes: true)
+            .WaitAsync(TimeSpan.FromSeconds(30));
+        if (result.ExitCode != 2 ||
+            !result.StandardOutput.Contains("OVERLAPPED_OUT", StringComparison.Ordinal) ||
+            !result.StandardError.Contains("OVERLAPPED_ERR", StringComparison.Ordinal))
+            throw new Exception("Suspended overlapped stdout/stderr/exit mismatch.");
+        Console.WriteLine("M3.1 suspended overlapped stdout/stderr launcher smoke passed");
+    }
+
     private static bool IsInheritable(SafePipeHandle handle)
     {
         if (!GetHandleInformation(handle, out var flags))

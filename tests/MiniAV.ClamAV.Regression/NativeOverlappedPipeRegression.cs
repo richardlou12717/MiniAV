@@ -64,6 +64,67 @@ internal static class NativeOverlappedPipeRegression
         Console.WriteLine("M3.1 suspended overlapped stdout/stderr launcher smoke passed");
     }
 
+    // Fault-path smoke. The test-only hook runs before stream owners are disposed.
+    internal static async Task RunLauncherFailuresAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        const long memory = 768L * 1024 * 1024;
+        static string[] Ps(string script) =>
+            new[] { "-NoProfile", "-NonInteractive", "-Command", script };
+        static Action<bool, bool> RequireBoth(string scenario) => (stdout, stderr) =>
+        {
+            if (!stdout || !stderr)
+                throw new Exception($"Reader not terminal at cleanup in {scenario}: stdout={stdout}, stderr={stderr}");
+            Console.WriteLine($"M3.1 overlapped {scenario}: both readers terminal before stream disposal");
+        };
+
+        Console.WriteLine("M3.1 overlapped failure stage: cancellation");
+        using (var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(900)))
+        {
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe,
+                    Ps("while ($true) { [Console]::Out.WriteLine('ACTIVE'); [Console]::Error.WriteLine('ACTIVE'); Start-Sleep -Milliseconds 30 }"),
+                    null, memory, 32768, TimeSpan.FromSeconds(15), cancel.Token,
+                    useOverlappedOutputPipes: true,
+                    readersQuiescedTestHook: RequireBoth("cancellation"))
+                    .WaitAsync(TimeSpan.FromSeconds(20));
+                throw new Exception("Cancellation was ignored.");
+            }
+            catch (OperationCanceledException) when (cancel.IsCancellationRequested) { }
+        }
+
+        Console.WriteLine("M3.1 overlapped failure stage: timeout");
+        try
+        {
+            await WindowsSuspendedLauncher.RunAsync(exe,
+                Ps("Start-Sleep -Seconds 30"),
+                null, memory, 4096, TimeSpan.FromMilliseconds(900), CancellationToken.None,
+                useOverlappedOutputPipes: true,
+                readersQuiescedTestHook: RequireBoth("timeout"))
+                .WaitAsync(TimeSpan.FromSeconds(20));
+            throw new Exception("Deadline was ignored.");
+        }
+        catch (TimeoutException ex) when (ex.Message.Contains("execution deadline", StringComparison.Ordinal)) { }
+
+        Console.WriteLine("M3.1 overlapped failure stage: output overflow");
+        try
+        {
+            await WindowsSuspendedLauncher.RunAsync(exe,
+                Ps("for ($i = 0; $i -lt 10000; $i++) { [Console]::Out.WriteLine('FLOOD'); [Console]::Error.WriteLine('FLOOD') }"),
+                null, memory, 1024, TimeSpan.FromSeconds(15), CancellationToken.None,
+                useOverlappedOutputPipes: true,
+                readersQuiescedTestHook: RequireBoth("overflow"))
+                .WaitAsync(TimeSpan.FromSeconds(20));
+            throw new Exception("Output limit was ignored.");
+        }
+        catch (InvalidDataException) { }
+
+        Console.WriteLine("M3.1 overlapped cancellation timeout overflow reader quiescence passed");
+    }
+
     private static bool IsInheritable(SafePipeHandle handle)
     {
         if (!GetHandleInformation(handle, out var flags))

@@ -74,6 +74,12 @@
 - Limitation: `Start-Process -NoNewWindow` does not independently prove stdout/stderr handles were retained by the descendant; need an explicit inherited-handle/EOF assertion before claiming that particular adversarial condition. Further: timeout/overflow descendants, error-injection cleanup and long stress.
 - Remain on feature branch. PR #3 Draft; no production runner or main changes.
 
+### M3.2 retained-writer descendant fixture Windows acceptance (2026-10-19)
+
+- User executed `--native-overlapped-retained-writer-test` and reported **PASS** after fixture commit `097fb7d`. The fixture observed a descendant PID, cancelled the isolated overlapped native launcher, saw the reader-quiescence hook report both tasks terminal, and verified no living marked descendant remained before defensive cleanup.
+- **Evidence limit:** the current PowerShell `Start-Process -NoNewWindow` fixture does not independently establish that descendant stdout/stderr writer handles remained open after the parent exited. Therefore record PASS for the tested cancellation/descendant cleanup sequence, *not* proof of the stronger inherited-writer EOF adversarial case.
+- Next: implement a handshake/hold-open fixture that independently verifies retained writer endpoints and parent exit before cancellation; cover corresponding timeout/overflow paths, injected native cleanup errors and exception preservation, sustained handle trends, and latest CI. Do not replace production `ClamProcessRunner` yet. PR #3 stays Draft; main untouched.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

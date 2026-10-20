@@ -73,10 +73,12 @@ internal static class NativeOverlappedPipeRegression
         const long memory = 768L * 1024 * 1024;
         static string[] Ps(string script) =>
             new[] { "-NoProfile", "-NonInteractive", "-Command", script };
-        static Action<bool, bool> RequireBoth(string scenario) => (stdout, stderr) =>
+        int verified = 0;
+        Action<bool, bool> RequireBoth(string scenario) => (stdout, stderr) =>
         {
             if (!stdout || !stderr)
                 throw new Exception($"Reader not terminal at cleanup in {scenario}: stdout={stdout}, stderr={stderr}");
+            Interlocked.Increment(ref verified);
             Console.WriteLine($"M3.1 overlapped {scenario}: both readers terminal before stream disposal");
         };
 
@@ -122,6 +124,8 @@ internal static class NativeOverlappedPipeRegression
         }
         catch (InvalidDataException) { }
 
+        if (verified != 3)
+            throw new Exception($"Reader completion hook ran {verified} times instead of three.");
         Console.WriteLine("M3.1 overlapped cancellation timeout overflow reader quiescence passed");
     }
 

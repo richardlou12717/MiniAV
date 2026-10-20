@@ -22,7 +22,8 @@ internal static class WindowsSuspendedLauncher
         TimeSpan timeout, CancellationToken cancellationToken,
         Action<int>? beforeResumeTestHook = null,
         bool useOverlappedOutputPipes = false,
-        Action<bool, bool>? readersQuiescedTestHook = null)
+        Action<bool, bool>? readersQuiescedTestHook = null,
+        Action<bool, bool>? parentExitedReadersPendingTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -125,6 +126,9 @@ internal static class WindowsSuspendedLauncher
                         throw new OperationCanceledException(token);
                     }
                     await completed.ConfigureAwait(false);
+                    if (completed == waitTask)
+                        parentExitedReadersPendingTestHook?.Invoke(
+                            outTask is { IsCompleted: false }, errTask is { IsCompleted: false });
                     pending.Remove(completed);
                 }
                 token.ThrowIfCancellationRequested();

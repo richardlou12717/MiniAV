@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-cleanup-double-fault-test")
+{
+    await NativeOverlappedPipeRegression.RunCleanupErrorPreservationAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-overlapped-retained-writer-test")
 {
     await NativeOverlappedPipeRegression.RunRetainedWriterAsync();

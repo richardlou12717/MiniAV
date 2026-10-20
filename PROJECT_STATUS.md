@@ -188,6 +188,13 @@
 - The newly added `--native-overlapped-stress-test` **has not been run yet**. Next Windows command: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-overlapped-stress-test`. Record all four handle counts/deltas; inspect trajectory, not just pass/fail.
 - No production integration; PR #3 Draft, main untouched.
 
+### M3.2 overlapped 80-iteration Windows stress PASS (2026-10-20)
+
+- User ran `--native-overlapped-stress-test` and obtained **PASS** over 80 alternating cases (successful exit, cancellation, timeout and output overflow). After warmup / GC the handle-count deltas were **round 20: -1 (266 handles), round 40: +4 (271), round 60: +9 (276), round 80: +8 (275)**. Final delta **+8**.
+- The count decreased from round 60 to round 80, with no monotonic growth across all samples. This is favorable but **not proof of leak freedom**; trends over a larger run, delayed disposal, private bytes and any surviving child processes still warrant attention.
+- This PASS follows Windows confirmation of `--native-reader-deferred-cleanup-test` (both error observability and exactly-once disposal PASS). Still open: genuinely nonquiescing native I/O, deeper native cleanup/Job failure scenarios, Windows CI, production integration and real-engine acceptance.
+- Production `ClamProcessRunner` unchanged. PR #3 remains Draft; `main` untouched.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

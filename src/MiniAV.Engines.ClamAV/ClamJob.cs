@@ -20,8 +20,9 @@ internal sealed class ClamJob : IDisposable
 
     private ClamJob(IntPtr job) => handle = job;
 
-    // Test-only invalid handle; never attach a live process to this instance.
-    internal static ClamJob FromInvalidHandleForTest() => new(new IntPtr(-1));
+    // Test-only deliberately unaligned nonzero value, not a Windows pseudo-handle
+    // (-1 denotes the current process). Never attach a live child to this fixture.
+    internal static ClamJob FromInvalidHandleForTest() => new(new IntPtr(0x12345));
 
     public static ClamJob Attach(Process process, long maxProcessMemoryBytes)
     {

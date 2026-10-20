@@ -236,6 +236,46 @@ internal static class NativeOverlappedPipeRegression
         }
     }
 
+    // Deterministic double fault: pre-resume operation fails, cleanup confirms native
+    // process exit, then the test-only hook injects an independent cleanup failure.
+    internal static async Task RunCleanupErrorPreservationAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        int pid = 0;
+        try
+        {
+            await WindowsSuspendedLauncher.RunAsync(exe,
+                new[] { "-NoProfile", "-NonInteractive", "-Command",
+                    "[Console]::Out.WriteLine('MUST_NOT_RUN')" },
+                null, 768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(15),
+                CancellationToken.None,
+                beforeResumeTestHook: createdPid =>
+                {
+                    pid = createdPid;
+                    throw new InvalidOperationException("INJECTED_OPERATION_FAILURE");
+                },
+                useOverlappedOutputPipes: true,
+                cleanupFailureTestHook: () =>
+                    throw new InvalidOperationException("INJECTED_CLEANUP_FAILURE"));
+            throw new Exception("Double fault injection was ignored.");
+        }
+        catch (AggregateException ex)
+        {
+            if (ex.InnerExceptions.Count != 2 ||
+                ex.InnerExceptions[0].Message != "INJECTED_OPERATION_FAILURE" ||
+                ex.InnerExceptions[1] is not IOException cleanup ||
+                cleanup.InnerException?.Message != "INJECTED_CLEANUP_FAILURE")
+                throw new Exception("Both failures were not preserved in order.", ex);
+        }
+        if (pid <= 0) throw new Exception("Pre-resume injection was not reached.");
+        using var process = TryGetProcess(pid);
+        if (process is not null && !process.HasExited)
+            throw new Exception("Injected suspended child survived cleanup.");
+        Console.WriteLine("M3.2 native original and cleanup exception preservation passed");
+    }
+
     private static System.Diagnostics.Process? TryGetProcess(int pid)
     {
         try { return System.Diagnostics.Process.GetProcessById(pid); }

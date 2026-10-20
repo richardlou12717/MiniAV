@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 focused Windows acceptance (2026-10-20)
+User reported PASS after switching the invalid-handle close fixture away from Windows' `-1` pseudo-handle to `0x12345`. This confirms the focused `--native-job-close-error-test` path (real Win32 error reporting and inert second Dispose) on the user's Windows system. Full regression PASS was not separately identified. Live Job-descendant behavior when the native close fails remains unverified and release-blocking.
+
 ## M3.3 Windows fixture correction (2026-10-20)
 The first Windows run of `--native-job-close-error-test` failed because the fixture used `-1`, which is the current-process pseudo-handle on Windows, not a reliable failing `CloseHandle` input. Changed to a deliberately unaligned non-pseudo value `0x12345` (commit `4e497d8`). User rerun pending; do not claim CloseHandle error-path PASS.
 

@@ -147,6 +147,8 @@ internal static class NativeOverlappedPipeRegression
             "[Console]::Out.WriteLine('PARENT_DONE'); [Console]::Error.WriteLine('PARENT_DONE')";
         int descendantPid = 0;
         int joined = 0;
+        var parentExitedWithPendingReaders =
+            new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var cancellation = new CancellationTokenSource();
         try
         {
@@ -160,6 +162,14 @@ internal static class NativeOverlappedPipeRegression
                     if (!stdout || !stderr)
                         throw new Exception("Retained-writer readers not terminal.");
                     Interlocked.Increment(ref joined);
+                },
+                parentExitedReadersPendingTestHook: (stdoutPending, stderrPending) =>
+                {
+                    if (stdoutPending && stderrPending)
+                        parentExitedWithPendingReaders.TrySetResult();
+                    else
+                        parentExitedWithPendingReaders.TrySetException(
+                            new Exception($"Parent exited without both readers pending: stdout={stdoutPending}, stderr={stderrPending}"));
                 });
             try
             {
@@ -179,6 +189,10 @@ internal static class NativeOverlappedPipeRegression
                     }
                 }
                 if (descendantPid <= 0) throw new TimeoutException("Descendant marker not observed.");
+                Console.WriteLine("M3.2 retained-writer stage: verify parent exit and pending stdout/stderr");
+                await parentExitedWithPendingReaders.Task.WaitAsync(TimeSpan.FromSeconds(8));
+                if (running.IsCompleted)
+                    throw new Exception("Launcher already completed although descendant should retain both writers.");
                 Console.WriteLine("M3.2 retained-writer stage: cancel");
                 cancellation.Cancel();
                 try
@@ -198,7 +212,7 @@ internal static class NativeOverlappedPipeRegression
                         throw new Exception("Retained-writer descendant still alive after Job close.");
                     }
                 }
-                Console.WriteLine("M3.2 retained descendant writer cancellation and reader cleanup passed");
+                Console.WriteLine("M3.2 parent-exited descendant-held pipes and reader cleanup passed");
             }
             finally
             {

@@ -129,6 +129,105 @@ internal static class NativeOverlappedPipeRegression
         Console.WriteLine("M3.1 overlapped cancellation timeout overflow reader quiescence passed");
     }
 
+    // An ordinary Job member holds stdout/stderr open after the parent exits.
+    // Cancellation must close the Job and join both overlapped readers.
+    internal static async Task RunRetainedWriterAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var marker = Path.Combine(Path.GetTempPath(),
+            "miniav-overlapped-descendant-" + Guid.NewGuid().ToString("N") + ".pid");
+        var escapedMarker = marker.Replace("'", "''", StringComparison.Ordinal);
+        var escapedExe = exe.Replace("'", "''", StringComparison.Ordinal);
+        var script = "$child = Start-Process -FilePath '" + escapedExe +
+            "' -ArgumentList @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 60') " +
+            "-NoNewWindow -PassThru; " +
+            "[IO.File]::WriteAllText('" + escapedMarker + "', [string]$child.Id); " +
+            "[Console]::Out.WriteLine('PARENT_DONE'); [Console]::Error.WriteLine('PARENT_DONE')";
+        int descendantPid = 0;
+        int joined = 0;
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            Console.WriteLine("M3.2 retained-writer stage: start");
+            var running = WindowsSuspendedLauncher.RunAsync(exe,
+                new[] { "-NoProfile", "-NonInteractive", "-Command", script },
+                null, 768L * 1024 * 1024, 32768, TimeSpan.FromSeconds(20),
+                cancellation.Token, useOverlappedOutputPipes: true,
+                readersQuiescedTestHook: (stdout, stderr) =>
+                {
+                    if (!stdout || !stderr)
+                        throw new Exception("Retained-writer readers not terminal.");
+                    Interlocked.Increment(ref joined);
+                });
+            try
+            {
+                var deadline = DateTime.UtcNow.AddSeconds(12);
+                while (DateTime.UtcNow < deadline && descendantPid <= 0)
+                {
+                    if (File.Exists(marker))
+                    {
+                        var contents = await File.ReadAllTextAsync(marker);
+                        int.TryParse(contents, out descendantPid);
+                    }
+                    if (descendantPid <= 0)
+                    {
+                        if (running.IsCompleted)
+                            throw new Exception("Native launcher exited before descendant marker.");
+                        await Task.Delay(50);
+                    }
+                }
+                if (descendantPid <= 0) throw new TimeoutException("Descendant marker not observed.");
+                Console.WriteLine("M3.2 retained-writer stage: cancel");
+                cancellation.Cancel();
+                try
+                {
+                    await running.WaitAsync(TimeSpan.FromSeconds(15));
+                    throw new Exception("Retained-writer cancellation was ignored.");
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+                if (joined != 1)
+                    throw new Exception($"Retained-writer reader completion hook count: {joined}");
+                using var descendant = TryGetProcess(descendantPid);
+                if (descendant is not null)
+                {
+                    try { await descendant.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+                    catch (TimeoutException)
+                    {
+                        throw new Exception("Retained-writer descendant still alive after Job close.");
+                    }
+                }
+                Console.WriteLine("M3.2 retained descendant writer cancellation and reader cleanup passed");
+            }
+            finally
+            {
+                cancellation.Cancel();
+                try { await running.WaitAsync(TimeSpan.FromSeconds(15)); }
+                catch { /* Preserve primary fixture failure; defensive cleanup follows. */ }
+            }
+        }
+        finally
+        {
+            if (descendantPid > 0)
+            {
+                using var survivor = TryGetProcess(descendantPid);
+                if (survivor is not null && !survivor.HasExited)
+                {
+                    survivor.Kill(entireProcessTree: true);
+                    await survivor.WaitForExitAsync();
+                }
+            }
+            if (File.Exists(marker)) File.Delete(marker);
+        }
+    }
+
+    private static System.Diagnostics.Process? TryGetProcess(int pid)
+    {
+        try { return System.Diagnostics.Process.GetProcessById(pid); }
+        catch (ArgumentException) { return null; }
+    }
+
     private static bool IsInheritable(SafePipeHandle handle)
     {
         if (!GetHandleInformation(handle, out var flags))

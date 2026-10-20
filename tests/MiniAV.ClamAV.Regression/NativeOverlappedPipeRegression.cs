@@ -320,6 +320,53 @@ internal static class NativeOverlappedPipeRegression
         }
     }
 
+    // After the real Job is closed, inject a cleanup failure while stdout's
+    // reader task remains held. Ownership must survive until the task finishes.
+    internal static async Task RunJobCloseFailureOwnershipAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        DeferredReaderCleanup? observed = null;
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(900));
+        try
+        {
+            Console.WriteLine("M3.2 Job-close fault stage: running");
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe,
+                    new[] { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 30" },
+                    null, 768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(15),
+                    cancellation.Token, useOverlappedOutputPipes: true,
+                    holdStdoutCompletionTestHook: () => release.Task,
+                    readerJoinTimeoutTestOverride: TimeSpan.FromMilliseconds(150),
+                    deferredOwnerTestHook: owner => observed = owner,
+                    afterJobCloseTestHook: () =>
+                        throw new InvalidOperationException("INJECTED_POST_JOB_CLOSE_FAILURE"))
+                    .WaitAsync(TimeSpan.FromSeconds(15));
+                throw new Exception("Job close fault returned success.");
+            }
+            catch (AggregateException ex)
+            {
+                if (ex.InnerExceptions.Count != 2 ||
+                    ex.InnerExceptions[0].Message != "INJECTED_POST_JOB_CLOSE_FAILURE" ||
+                    ex.InnerExceptions[1] is not IOException join ||
+                    !join.Message.Contains("deferred", StringComparison.Ordinal))
+                    throw new Exception("Job close and reader join failures not both preserved.", ex);
+            }
+            if (observed is null || !observed.WasDeferred || observed.ResourcesDisposed)
+                throw new Exception("Reader resources released despite pending task and Job-close fault.");
+            Console.WriteLine("M3.2 Job-close fault stage: ownership retained");
+            release.SetResult();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (!observed.ResourcesDisposed)
+                await Task.Delay(10, deadline.Token);
+            Console.WriteLine("M3.2 Job-close failure deferred reader ownership passed");
+        }
+        finally { release.TrySetResult(); }
+    }
+
     private static System.Diagnostics.Process? TryGetProcess(int pid)
     {
         try { return System.Diagnostics.Process.GetProcessById(pid); }

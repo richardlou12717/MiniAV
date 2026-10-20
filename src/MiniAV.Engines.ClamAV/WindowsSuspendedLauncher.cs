@@ -20,7 +20,8 @@ internal static class WindowsSuspendedLauncher
     internal static async Task<Result> RunAsync(string executable, IReadOnlyList<string> args,
         string? workingDirectory, long jobMemoryLimitBytes, int maxCharsPerStream,
         TimeSpan timeout, CancellationToken cancellationToken,
-        Action<int>? beforeResumeTestHook = null)
+        Action<int>? beforeResumeTestHook = null,
+        bool useOverlappedOutputPipes = false)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -32,9 +33,13 @@ internal static class WindowsSuspendedLauncher
         deadline.CancelAfter(timeout);
         var token = deadline.Token;
         using var stdin = WindowsChildPipe.Create(childReads: true);
-        using var stdout = WindowsChildPipe.Create(childReads: false);
-        using var stderr = WindowsChildPipe.Create(childReads: false);
-        var handles = new[] { stdin.Child.DangerousGetHandle(), stdout.Child.DangerousGetHandle(), stderr.Child.DangerousGetHandle() };
+        using var stdout = useOverlappedOutputPipes ? null : WindowsChildPipe.Create(childReads: false);
+        using var stderr = useOverlappedOutputPipes ? null : WindowsChildPipe.Create(childReads: false);
+        using var asyncStdout = useOverlappedOutputPipes ? await WindowsOverlappedOutputPipe.CreateAsync().ConfigureAwait(false) : null;
+        using var asyncStderr = useOverlappedOutputPipes ? await WindowsOverlappedOutputPipe.CreateAsync().ConfigureAwait(false) : null;
+        var handles = new[] { stdin.Child.DangerousGetHandle(),
+            useOverlappedOutputPipes ? asyncStdout!.Child.DangerousGetHandle() : stdout!.Child.DangerousGetHandle(),
+            useOverlappedOutputPipes ? asyncStderr!.Child.DangerousGetHandle() : stderr!.Child.DangerousGetHandle() };
         IntPtr attributes = IntPtr.Zero, listMemory = IntPtr.Zero;
         bool initialized = false;
         ProcessInformation native = default;
@@ -81,13 +86,23 @@ internal static class WindowsSuspendedLauncher
             if (ResumeThread(native.ThreadHandle) != 1)
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "ResumeThread failed.");
             stdin.Child.Dispose();
-            stdout.Child.Dispose();
-            stderr.Child.Dispose();
+            if (useOverlappedOutputPipes)
+            {
+                asyncStdout!.CloseChildWriter();
+                asyncStderr!.CloseChildWriter();
+            }
+            else
+            {
+                stdout!.Child.Dispose();
+                stderr!.Child.Dispose();
+            }
             stdin.Parent.Dispose();
-            using var stdoutStream = new FileStream(stdout.Parent, FileAccess.Read, 4096, isAsync: false);
-            using var stderrStream = new FileStream(stderr.Parent, FileAccess.Read, 4096, isAsync: false);
-            using var outReader = new StreamReader(stdoutStream, Encoding.UTF8, true);
-            using var errReader = new StreamReader(stderrStream, Encoding.UTF8, true);
+            using var stdoutStream = useOverlappedOutputPipes ? null :
+                new FileStream(stdout!.Parent, FileAccess.Read, 4096, isAsync: false);
+            using var stderrStream = useOverlappedOutputPipes ? null :
+                new FileStream(stderr!.Parent, FileAccess.Read, 4096, isAsync: false);
+            using var outReader = new StreamReader(useOverlappedOutputPipes ? asyncStdout!.Parent : stdoutStream!, Encoding.UTF8, true, bufferSize: 4096, leaveOpen: true);
+            using var errReader = new StreamReader(useOverlappedOutputPipes ? asyncStderr!.Parent : stderrStream!, Encoding.UTF8, true, leaveOpen: true);
             using var readStop = CancellationTokenSource.CreateLinkedTokenSource(token);
             Task<string>? outTask = null, errTask = null;
             Task? waitTask = null;

@@ -21,7 +21,8 @@ internal static class WindowsSuspendedLauncher
         string? workingDirectory, long jobMemoryLimitBytes, int maxCharsPerStream,
         TimeSpan timeout, CancellationToken cancellationToken,
         Action<int>? beforeResumeTestHook = null,
-        bool useOverlappedOutputPipes = false)
+        bool useOverlappedOutputPipes = false,
+        Action<bool, bool>? readersQuiescedTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -145,13 +146,24 @@ internal static class WindowsSuspendedLauncher
                     {
                         await Task.WhenAll(readers).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     }
-                    catch (OperationCanceledException) when (readStop.IsCancellationRequested) { }
-                    catch (InvalidDataException) { /* overflow already being propagated */ }
                     catch (TimeoutException ex)
                     {
                         throw new IOException("Native pipe readers did not stop after Job termination.", ex);
                     }
+                    catch (Exception) when (readers.All(static task => task.IsCompleted))
+                    {
+                        // All readers are terminal (possibly faulted/cancelled). The main
+                        // completion loop already observed the triggering failure.
+                        // Never treat a faulted Task.WhenAll as proof of both completing
+                        // unless this condition is independently checked.
+                        foreach (var readerTask in readers)
+                            _ = readerTask.Exception;
+                    }
                 }
+                if (readers.Any(static task => !task.IsCompleted))
+                    throw new IOException("Native pipe reader lifetime could not be confirmed.");
+                readersQuiescedTestHook?.Invoke(outTask?.IsCompleted ?? true,
+                    errTask?.IsCompleted ?? true);
                 // A process wait task also receives the cancelled token; observe its
                 // completion without requiring success to be treated as scan success.
                 if (waitTask is { IsCompleted: true })

@@ -9,6 +9,12 @@ if (args.Length > 0 && args[0] == "--native-overlapped-stress-test")
     return;
 }
 
+if (args.Length > 0 && args[0] == "--native-timeout-cleanup-double-fault-test")
+{
+    await NativeOverlappedPipeRegression.RunTimeoutCleanupDoubleFaultAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-job-close-ownership-test")
 {
     await NativeOverlappedPipeRegression.RunJobCloseFailureOwnershipAsync();

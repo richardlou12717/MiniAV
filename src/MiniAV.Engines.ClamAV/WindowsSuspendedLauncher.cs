@@ -37,10 +37,18 @@ internal static class WindowsSuspendedLauncher
         deadline.CancelAfter(timeout);
         var token = deadline.Token;
         using var stdin = WindowsChildPipe.Create(childReads: true);
-        using var stdout = useOverlappedOutputPipes ? null : WindowsChildPipe.Create(childReads: false);
-        using var stderr = useOverlappedOutputPipes ? null : WindowsChildPipe.Create(childReads: false);
-        using var asyncStdout = useOverlappedOutputPipes ? await WindowsOverlappedOutputPipe.CreateAsync().ConfigureAwait(false) : null;
-        using var asyncStderr = useOverlappedOutputPipes ? await WindowsOverlappedOutputPipe.CreateAsync().ConfigureAwait(false) : null;
+        using var stdoutGuard = useOverlappedOutputPipes ? null :
+            new DisposalTransferGate<WindowsChildPipe>(WindowsChildPipe.Create(childReads: false));
+        using var stderrGuard = useOverlappedOutputPipes ? null :
+            new DisposalTransferGate<WindowsChildPipe>(WindowsChildPipe.Create(childReads: false));
+        using var asyncStdoutGuard = useOverlappedOutputPipes ?
+            new DisposalTransferGate<WindowsOverlappedOutputPipe>(await WindowsOverlappedOutputPipe.CreateAsync().ConfigureAwait(false)) : null;
+        using var asyncStderrGuard = useOverlappedOutputPipes ?
+            new DisposalTransferGate<WindowsOverlappedOutputPipe>(await WindowsOverlappedOutputPipe.CreateAsync().ConfigureAwait(false)) : null;
+        var stdout = stdoutGuard?.Value;
+        var stderr = stderrGuard?.Value;
+        var asyncStdout = asyncStdoutGuard?.Value;
+        var asyncStderr = asyncStderrGuard?.Value;
         var handles = new[] { stdin.Child.DangerousGetHandle(),
             useOverlappedOutputPipes ? asyncStdout!.Child.DangerousGetHandle() : stdout!.Child.DangerousGetHandle(),
             useOverlappedOutputPipes ? asyncStderr!.Child.DangerousGetHandle() : stderr!.Child.DangerousGetHandle() };
@@ -102,13 +110,21 @@ internal static class WindowsSuspendedLauncher
                 stderr!.Child.Dispose();
             }
             stdin.Parent.Dispose();
-            using var stdoutStream = useOverlappedOutputPipes ? null :
-                new FileStream(stdout!.Parent, FileAccess.Read, 4096, isAsync: false);
-            using var stderrStream = useOverlappedOutputPipes ? null :
-                new FileStream(stderr!.Parent, FileAccess.Read, 4096, isAsync: false);
-            using var outReader = new StreamReader(useOverlappedOutputPipes ? asyncStdout!.Parent : stdoutStream!, Encoding.UTF8, true, bufferSize: 4096, leaveOpen: true);
-            using var errReader = new StreamReader(useOverlappedOutputPipes ? asyncStderr!.Parent : stderrStream!, Encoding.UTF8, true, leaveOpen: true);
-            using var readStop = CancellationTokenSource.CreateLinkedTokenSource(token);
+            using var stdoutStreamGuard = useOverlappedOutputPipes ? null :
+                new DisposalTransferGate<FileStream>(new FileStream(stdout!.Parent, FileAccess.Read, 4096, isAsync: false));
+            using var stderrStreamGuard = useOverlappedOutputPipes ? null :
+                new DisposalTransferGate<FileStream>(new FileStream(stderr!.Parent, FileAccess.Read, 4096, isAsync: false));
+            var stdoutStream = stdoutStreamGuard?.Value;
+            var stderrStream = stderrStreamGuard?.Value;
+            using var outReaderGuard = new DisposalTransferGate<StreamReader>(
+                new StreamReader(useOverlappedOutputPipes ? asyncStdout!.Parent : stdoutStream!, Encoding.UTF8, true, bufferSize: 4096, leaveOpen: true));
+            using var errReaderGuard = new DisposalTransferGate<StreamReader>(
+                new StreamReader(useOverlappedOutputPipes ? asyncStderr!.Parent : stderrStream!, Encoding.UTF8, true, leaveOpen: true));
+            var outReader = outReaderGuard.Value;
+            var errReader = errReaderGuard.Value;
+            using var readStopGuard = new DisposalTransferGate<CancellationTokenSource>(
+                CancellationTokenSource.CreateLinkedTokenSource(token));
+            var readStop = readStopGuard.Value;
             Task<string>? outTask = null, errTask = null;
             Task? waitTask = null;
             try
@@ -147,25 +163,37 @@ internal static class WindowsSuspendedLauncher
                 var readers = new List<Task>(2);
                 if (outTask is not null) readers.Add(outTask);
                 if (errTask is not null) readers.Add(errTask);
-                if (readers.Count != 0)
+                var owned = new List<IDisposable> { outReader, errReader, readStop };
+                if (stdoutStream is not null) owned.Add(stdoutStream);
+                if (stderrStream is not null) owned.Add(stderrStream);
+                if (stdout is not null) owned.Add(stdout);
+                if (stderr is not null) owned.Add(stderr);
+                if (asyncStdout is not null) owned.Add(asyncStdout);
+                if (asyncStderr is not null) owned.Add(asyncStderr);
+                var owner = new DeferredReaderCleanup(owned, readers.ToArray());
+                try
                 {
-                    try
-                    {
-                        await Task.WhenAll(readers).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                    }
-                    catch (TimeoutException ex)
-                    {
-                        throw new IOException("Native pipe readers did not stop after Job termination.", ex);
-                    }
-                    catch (Exception) when (readers.All(static task => task.IsCompleted))
-                    {
-                        // All readers are terminal (possibly faulted/cancelled). The main
-                        // completion loop already observed the triggering failure.
-                        // Never treat a faulted Task.WhenAll as proof of both completing
-                        // unless this condition is independently checked.
-                        foreach (var readerTask in readers)
-                            _ = readerTask.Exception;
-                    }
+                    await owner.JoinOrDeferAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (Exception) when (readers.All(static task => task.IsCompleted))
+                {
+                    // The main loop already observed the first reader failure.
+                    foreach (var readerTask in readers)
+                        _ = readerTask.Exception;
+                }
+                finally
+                {
+                    // Owner either disposed resources synchronously, or retained them
+                    // in a completion continuation. Scope guards must never race it.
+                    outReaderGuard.Transfer();
+                    errReaderGuard.Transfer();
+                    readStopGuard.Transfer();
+                    stdoutStreamGuard?.Transfer();
+                    stderrStreamGuard?.Transfer();
+                    stdoutGuard?.Transfer();
+                    stderrGuard?.Transfer();
+                    asyncStdoutGuard?.Transfer();
+                    asyncStderrGuard?.Transfer();
                 }
                 if (readers.Any(static task => !task.IsCompleted))
                     throw new IOException("Native pipe reader lifetime could not be confirmed.");

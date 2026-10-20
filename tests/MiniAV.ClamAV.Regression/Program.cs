@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-reader-deferred-cleanup-test")
+{
+    await DeferredReaderCleanupRegression.RunAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-cleanup-double-fault-test")
 {
     await NativeOverlappedPipeRegression.RunCleanupErrorPreservationAsync();

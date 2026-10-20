@@ -15,12 +15,14 @@ internal static class NativeOverlappedPipeRegression
         if (!IsInheritable(pipe.Child))
             throw new Exception("Native overlapped child writer is not inheritable.");
         var bytes = new byte[] { 0, 1, 127, 128, 255 };
+        var received = new byte[bytes.Length];
+        Console.WriteLine("M3.1 pipe stage: start read bytes before write");
+        var receiveTask = pipe.Parent.ReadExactlyAsync(received).AsTask();
         Console.WriteLine("M3.1 pipe stage: write");
         await pipe.ChildWriter.WriteAsync(bytes).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
         await pipe.ChildWriter.FlushAsync().WaitAsync(TimeSpan.FromSeconds(5));
-        var received = new byte[bytes.Length];
-        Console.WriteLine("M3.1 pipe stage: read bytes");
-        await pipe.Parent.ReadExactlyAsync(received).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        Console.WriteLine("M3.1 pipe stage: await read bytes");
+        await receiveTask.WaitAsync(TimeSpan.FromSeconds(5));
         if (!received.AsSpan().SequenceEqual(bytes))
             throw new Exception("Overlapped output pipe byte transfer mismatch.");
 

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.ExceptionServices;
 using System.Text;
 
 namespace MiniAV.Engines.ClamAV;
@@ -23,7 +24,8 @@ internal static class WindowsSuspendedLauncher
         Action<int>? beforeResumeTestHook = null,
         bool useOverlappedOutputPipes = false,
         Action<bool, bool>? readersQuiescedTestHook = null,
-        Action<bool, bool>? parentExitedReadersPendingTestHook = null)
+        Action<bool, bool>? parentExitedReadersPendingTestHook = null,
+        Action? cleanupFailureTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -47,6 +49,7 @@ internal static class WindowsSuspendedLauncher
         ProcessInformation native = default;
         ClamJob? job = null;
         Process? child = null;
+        ExceptionDispatchInfo? originalFailure = null;
         try
         {
             IntPtr attributeBytes = IntPtr.Zero;
@@ -178,6 +181,10 @@ internal static class WindowsSuspendedLauncher
         {
             throw new TimeoutException("Native child exceeded its execution deadline.");
         }
+        catch (Exception ex)
+        {
+            originalFailure = ExceptionDispatchInfo.Capture(ex);
+        }
         finally
         {
             // Always release every handle even when process termination fails.
@@ -212,6 +219,7 @@ internal static class WindowsSuspendedLauncher
                             ? new Win32Exception(Marshal.GetLastWin32Error(), "Native child wait failed.")
                             : new IOException($"Native child did not exit during cleanup (wait={wait}).");
                 }
+                cleanupFailureTestHook?.Invoke(); // Inject only after real cleanup confirmation.
             }
             catch (Exception ex)
             {
@@ -227,8 +235,16 @@ internal static class WindowsSuspendedLauncher
                 if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
             }
             if (cleanupFailure is not null)
-                throw new IOException("Native process cleanup could not be confirmed.", cleanupFailure);
+            {
+                var cleanupError = new IOException("Native process cleanup could not be confirmed.", cleanupFailure);
+                if (originalFailure is not null)
+                    throw new AggregateException("Native operation and cleanup both failed.",
+                        originalFailure.SourceException, cleanupError);
+                throw cleanupError;
+            }
         }
+        originalFailure?.Throw();
+        throw new InvalidOperationException("Native launcher terminated without a result or exception.");
     }
 
     private static async Task<string> ReadBoundedAsync(StreamReader reader, int maxChars, CancellationToken token)

@@ -142,6 +142,13 @@
 - **Still open**: force an actual native launcher reader-join timeout, verify the deferred continuation owns all Stream/pipe/CTS resources until final reader completion; show safety for failures during Job close and deferred disposal and evaluate irrecoverably stuck reads, sustained handle trend, Windows CI. Do not claim universal resource safety or production readiness.
 - `ClamProcessRunner` unchanged, PR #3 Draft and `main` untouched.
 
+### M3.2 forced native launcher reader-join timeout fixture (2026-10-19; Windows pending)
+
+- Added opt-in `--native-forced-reader-join-test` using a real suspended Windows PowerShell subprocess, Job-before-resume, and overlapped stdout/stderr. A **test-only post-read completion gate** holds the stdout reader task even after underlying read has completed/cancelled; a short test-only 150ms reader join forces the *actual launcher cleanup path* into `DeferredReaderCleanup` timeout and resource transfer.
+- Fixture checks the launcher reports the expected `IOException` (not success), the deferred owner reports ownership **without early disposal**, then releases the held completion and checks eventual disposal. No production path or default 5s join limit changes.
+- **Evidence boundary:** this simulates a task that has not completed **after** underlying I/O finishes; it is NOT proof of a genuine blocked kernel pipe operation being cancellable, nor proof against leaks when a reader permanently hangs.
+- Windows build and execution **not yet validated**. Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-forced-reader-join-test`. If PASS, rerun ordinary overlapped-failure and retained-writer suites. PR #3 Draft; main / production runner untouched.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

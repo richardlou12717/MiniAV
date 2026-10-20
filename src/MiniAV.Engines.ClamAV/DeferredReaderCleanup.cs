@@ -11,6 +11,9 @@ internal sealed class DeferredReaderCleanup
     private readonly Task[] _readers;
     private int _disposed;
     private int _deferred;
+    private readonly TaskCompletionSource<Exception?> _completion =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    internal Task<Exception?> CleanupCompletion => _completion.Task;
 
     internal DeferredReaderCleanup(IEnumerable<IDisposable> resources, params Task[] readers)
     {
@@ -53,13 +56,19 @@ internal sealed class DeferredReaderCleanup
     private void DisposeResources()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        var failures = new List<Exception>();
         foreach (var resource in _resources)
         {
             try { resource.Dispose(); }
             catch (Exception exception)
             {
-                System.Diagnostics.Debug.WriteLine("Deferred reader cleanup failed: " + exception);
+                failures.Add(exception);
             }
         }
+        var error = failures.Count == 0 ? null :
+            new AggregateException("Deferred reader resource disposal failed.", failures);
+        if (error is not null)
+            System.Diagnostics.Trace.TraceError(error.ToString());
+        _completion.TrySetResult(error);
     }
 }

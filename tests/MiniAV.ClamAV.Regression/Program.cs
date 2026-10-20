@@ -3,6 +3,25 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-job-close-error-test")
+{
+    if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+    var job = ClamJob.FromInvalidHandleForTest();
+    try
+    {
+        job.Dispose();
+        throw new Exception("Invalid native Job handle close did not fail.");
+    }
+    catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 6)
+    {
+        // ERROR_INVALID_HANDLE comes from a genuine failing Win32 CloseHandle.
+        // This deliberately has no live child: no termination guarantee is inferred.
+    }
+    job.Dispose(); // Must not attempt a second close after ambiguous first failure.
+    Console.WriteLine("M3.3 native Job CloseHandle error reporting and single-close ownership passed");
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-overlapped-stress-test")
 {
     await NativeOverlappedStressRegression.RunAsync();

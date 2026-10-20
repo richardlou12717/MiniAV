@@ -195,6 +195,13 @@
 - This PASS follows Windows confirmation of `--native-reader-deferred-cleanup-test` (both error observability and exactly-once disposal PASS). Still open: genuinely nonquiescing native I/O, deeper native cleanup/Job failure scenarios, Windows CI, production integration and real-engine acceptance.
 - Production `ClamProcessRunner` unchanged. PR #3 remains Draft; `main` untouched.
 
+### M3.3 production integration security review (2026-10-20)
+
+- Added `docs/M3_3_PRODUCTION_INTEGRATION_REVIEW.md` documenting source-level findings from `WindowsSuspendedLauncher`, `ClamJob`, `ClamProcessRunner`, and `ClamAvScanEngine`. No production code changed.
+- Release blockers: `ClamJob.Dispose` currently ignores Win32 `CloseHandle` result; permanent underlying I/O stalls remain possible despite deferred ownership; original timeout and cleanup error aggregation needs a focused regression; native `InvalidDataException` output overflow needs explicit mapping to production `ProcessOutputLimitException`; future integration must select overlapped pipes, not default synchronous path.
+- Related Windows CI query for commit `369dbaf` returned workflow `in_progress`, **not a green result**; it is not a current-head CI endorsement.
+- Next step: targeted timeout+cleanup fault regression, then native Job close reliability design. Keep PR #3 Draft; `main` and production runner unchanged.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

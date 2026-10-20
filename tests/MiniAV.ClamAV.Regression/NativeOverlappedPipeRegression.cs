@@ -367,6 +367,35 @@ internal static class NativeOverlappedPipeRegression
         finally { release.TrySetResult(); }
     }
 
+    internal static async Task RunTimeoutCleanupDoubleFaultAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        try
+        {
+            await WindowsSuspendedLauncher.RunAsync(exe,
+                new[] { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 30" },
+                null, 768L * 1024 * 1024, 4096,
+                TimeSpan.FromMilliseconds(900), CancellationToken.None,
+                useOverlappedOutputPipes: true,
+                cleanupFailureTestHook: () =>
+                    throw new InvalidOperationException("INJECTED_TIMEOUT_CLEANUP_FAILURE"))
+                .WaitAsync(TimeSpan.FromSeconds(20));
+            throw new Exception("Timed out subprocess unexpectedly succeeded.");
+        }
+        catch (AggregateException ex)
+        {
+            if (ex.InnerExceptions.Count != 2 ||
+                ex.InnerExceptions[0] is not TimeoutException timeout ||
+                !timeout.Message.Contains("execution deadline", StringComparison.Ordinal) ||
+                ex.InnerExceptions[1] is not IOException cleanup ||
+                cleanup.InnerException?.Message != "INJECTED_TIMEOUT_CLEANUP_FAILURE")
+                throw new Exception("Deadline timeout and cleanup error were not both preserved.", ex);
+        }
+        Console.WriteLine("M3.3 native timeout plus cleanup double fault passed");
+    }
+
     private static System.Diagnostics.Process? TryGetProcess(int pid)
     {
         try { return System.Diagnostics.Process.GetProcessById(pid); }

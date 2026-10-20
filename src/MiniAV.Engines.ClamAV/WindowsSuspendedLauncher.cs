@@ -28,7 +28,8 @@ internal static class WindowsSuspendedLauncher
         Action? cleanupFailureTestHook = null,
         Func<Task>? holdStdoutCompletionTestHook = null,
         TimeSpan? readerJoinTimeoutTestOverride = null,
-        Action<DeferredReaderCleanup>? deferredOwnerTestHook = null)
+        Action<DeferredReaderCleanup>? deferredOwnerTestHook = null,
+        Action? afterJobCloseTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -163,8 +164,6 @@ internal static class WindowsSuspendedLauncher
                 // On overflow/cancel/timeout, stop readers and kill the entire Job
                 // *before* waiting for EOF. Close owning streams only after joins.
                 readStop.Cancel();
-                job?.Dispose();
-                job = null;
                 var readers = new List<Task>(2);
                 if (outTask is not null) readers.Add(outTask);
                 if (errTask is not null) readers.Add(errTask);
@@ -176,20 +175,42 @@ internal static class WindowsSuspendedLauncher
                 if (asyncStdout is not null) owned.Add(asyncStdout);
                 if (asyncStderr is not null) owned.Add(asyncStderr);
                 var owner = new DeferredReaderCleanup(owned, readers.ToArray());
+                Exception? jobCloseFailure = null;
+                Exception? readerJoinFailure = null;
                 try
                 {
-                    await owner.JoinOrDeferAsync(readerJoinTimeoutTestOverride ?? TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                }
-                catch (IOException) when (owner.WasDeferred)
-                {
-                    deferredOwnerTestHook?.Invoke(owner);
-                    throw;
-                }
-                catch (Exception) when (readers.All(static task => task.IsCompleted))
-                {
-                    // The main loop already observed the first reader failure.
-                    foreach (var readerTask in readers)
-                        _ = readerTask.Exception;
+                    // Establish ownership before Job close: even if Job.Dispose()
+                    // throws, the read tasks keep their streams until completion.
+                    try
+                    {
+                        job?.Dispose();
+                        job = null;
+                        afterJobCloseTestHook?.Invoke(); // Test-only post-close fault.
+                    }
+                    catch (Exception ex)
+                    {
+                        jobCloseFailure = ex;
+                    }
+                    try
+                    {
+                        await owner.JoinOrDeferAsync(readerJoinTimeoutTestOverride ??
+                            TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    }
+                    catch (IOException ex) when (owner.WasDeferred)
+                    {
+                        deferredOwnerTestHook?.Invoke(owner);
+                        readerJoinFailure = ex;
+                    }
+                    catch (Exception ex) when (readers.All(static task => task.IsCompleted))
+                    {
+                        // Read faults have already been captured by the original
+                        // operation, but unexpected join faults are still observable.
+                        foreach (var readerTask in readers)
+                            _ = readerTask.Exception;
+                        if (ex is not OperationCanceledException &&
+                            ex is not InvalidDataException)
+                            readerJoinFailure = ex;
+                    }
                 }
                 finally
                 {
@@ -205,6 +226,13 @@ internal static class WindowsSuspendedLauncher
                     asyncStdoutGuard?.Transfer();
                     asyncStderrGuard?.Transfer();
                 }
+                if (jobCloseFailure is not null && readerJoinFailure is not null)
+                    throw new AggregateException("Job close and reader join both failed.",
+                        jobCloseFailure, readerJoinFailure);
+                if (jobCloseFailure is not null)
+                    ExceptionDispatchInfo.Capture(jobCloseFailure).Throw();
+                if (readerJoinFailure is not null)
+                    ExceptionDispatchInfo.Capture(readerJoinFailure).Throw();
                 if (readers.Any(static task => !task.IsCompleted))
                     throw new IOException("Native pipe reader lifetime could not be confirmed.");
                 readersQuiescedTestHook?.Invoke(outTask?.IsCompleted ?? true,

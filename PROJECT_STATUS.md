@@ -127,6 +127,14 @@
 - **Important:** No Windows build/run for this integrated code has been reported. First run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-overlapped-failure-test` after `git pull --ff-only`; then `--native-overlapped-retained-writer-test`, `--native-cleanup-double-fault-test` and `scripts/regression-test.ps1`.
 - Still to implement: deterministic forced *real launcher* join-timeout test, error reporting for any deferred disposal failures (current owner logs them to Debug), clean lifetime if `Job.Dispose` itself throws before owner registration, handling irrecoverably hung readers (resources remain held), long-run handle counts/CI. No production integration or main merge; PR #3 Draft.
 
+### M3.2 integrated deferred-ownership Windows regression evidence (2026-10-19)
+
+- After integration commit `5cfa138`, user ran `--native-overlapped-retained-writer-test` and received **PASS**: direct parent exit with stdout/stderr readers still pending, cancellation, both reader cleanup and descendant termination.
+- User ran `--native-cleanup-double-fault-test` and received **PASS**: injected original and cleanup exceptions preserved.
+- User ran `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1` and received **PASS**; Release build succeeded (1.8s), Core cases, Windows pipe inheritance, suspended Job-before-resume, ClamAV Job/process and fake-runner regressions passed.
+- The previously requested `--native-overlapped-failure-test` was **not present in this Windows output** following integration and must be rerun; no PASS claim for that post-integration scenario. The independent `--native-reader-deferred-cleanup-test` passed before integration, not after it.
+- Still unverified: *actual* reader-join timeout against launcher, deferred resource release after stalled real I/O, cleanup when Job close itself faults, long handle trend and CI. PR #3 Draft; main and production `ClamProcessRunner` untouched.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

@@ -245,7 +245,7 @@ internal static class WindowsSuspendedLauncher
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && deadline.IsCancellationRequested)
         {
-            throw new TimeoutException("Native child exceeded its execution deadline.");
+            originalFailure = ExceptionDispatchInfo.Capture(new TimeoutException("Native child exceeded its execution deadline."));
         }
         catch (Exception ex)
         {

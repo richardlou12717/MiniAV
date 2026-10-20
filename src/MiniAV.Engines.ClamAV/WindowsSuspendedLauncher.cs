@@ -258,7 +258,11 @@ internal static class WindowsSuspendedLauncher
             Exception? cleanupFailure = null;
             try
             {
-                job?.Dispose(); // Kill all Job members before checking process exit.
+                // Even if CloseHandle fails, independently check the direct child.
+                // A failed Job close never proves descendants were terminated.
+                try { job?.Dispose(); }
+                catch (Exception ex) { cleanupFailure = ex; }
+                job = null; // ClamJob consumed its handle; never retry ambiguous close.
                 if (native.ProcessHandle != IntPtr.Zero)
                 {
                     // Job close triggers process-tree termination asynchronously.
@@ -285,11 +289,15 @@ internal static class WindowsSuspendedLauncher
                             ? new Win32Exception(Marshal.GetLastWin32Error(), "Native child wait failed.")
                             : new IOException($"Native child did not exit during cleanup (wait={wait}).");
                 }
-                cleanupFailureTestHook?.Invoke(); // Inject only after real cleanup confirmation.
+                // Do not label the process tree confirmed if Job close failed.
+                if (cleanupFailure is null)
+                    cleanupFailureTestHook?.Invoke(); // Inject only after confirmed cleanup.
             }
             catch (Exception ex)
             {
-                cleanupFailure = ex;
+                cleanupFailure = cleanupFailure is null ? ex :
+                    new AggregateException("Job handle close and native process cleanup failed.",
+                        cleanupFailure, ex);
             }
             finally
             {

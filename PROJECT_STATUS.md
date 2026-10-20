@@ -202,6 +202,13 @@
 - Related Windows CI query for commit `369dbaf` returned workflow `in_progress`, **not a green result**; it is not a current-head CI endorsement.
 - Next step: targeted timeout+cleanup fault regression, then native Job close reliability design. Keep PR #3 Draft; `main` and production runner unchanged.
 
+### M3.3 deadline timeout plus cleanup fault regression (2026-10-20; Windows pending)
+
+- Fixed isolated `WindowsSuspendedLauncher` deadline exception preservation: its timeout-specific catch now captures a `TimeoutException` into `originalFailure` rather than throwing from that catch before the outer native cleanup-finally executes. This allows `AggregateException` to retain both timeout and a subsequent cleanup failure.
+- Added Windows opt-in `--native-timeout-cleanup-double-fault-test`: harmless sleeping PowerShell, 900ms deadline and fault injected after confirmed native cleanup; asserts the aggregate contains original `TimeoutException` then `IOException` wrapping the injected cleanup failure. **NOT WINDOWS-VALIDATED YET**.
+- Run: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-timeout-cleanup-double-fault-test`. If PASS, rerun `--native-overlapped-failure-test` to guard cancellation and timeout behavior. Keep other M3.3 release blockers open, especially `ClamJob.Dispose` ignoring native `CloseHandle` failures; do not modify production runner yet.
+- PR #3 remains Draft; main unchanged.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

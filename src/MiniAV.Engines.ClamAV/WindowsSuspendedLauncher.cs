@@ -25,7 +25,10 @@ internal static class WindowsSuspendedLauncher
         bool useOverlappedOutputPipes = false,
         Action<bool, bool>? readersQuiescedTestHook = null,
         Action<bool, bool>? parentExitedReadersPendingTestHook = null,
-        Action? cleanupFailureTestHook = null)
+        Action? cleanupFailureTestHook = null,
+        Func<Task>? holdStdoutCompletionTestHook = null,
+        TimeSpan? readerJoinTimeoutTestOverride = null,
+        Action<DeferredReaderCleanup>? deferredOwnerTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -130,6 +133,8 @@ internal static class WindowsSuspendedLauncher
             try
             {
                 outTask = ReadBoundedAsync(outReader, maxCharsPerStream, readStop.Token);
+                if (holdStdoutCompletionTestHook is not null)
+                    outTask = HoldReaderCompletionForTestAsync(outTask, holdStdoutCompletionTestHook);
                 errTask = ReadBoundedAsync(errReader, maxCharsPerStream, readStop.Token);
                 waitTask = child.WaitForExitAsync(token);
                 var pending = new List<Task> { outTask, errTask, waitTask };
@@ -173,7 +178,12 @@ internal static class WindowsSuspendedLauncher
                 var owner = new DeferredReaderCleanup(owned, readers.ToArray());
                 try
                 {
-                    await owner.JoinOrDeferAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    await owner.JoinOrDeferAsync(readerJoinTimeoutTestOverride ?? TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+                catch (IOException) when (owner.WasDeferred)
+                {
+                    deferredOwnerTestHook?.Invoke(owner);
+                    throw;
                 }
                 catch (Exception) when (readers.All(static task => task.IsCompleted))
                 {
@@ -273,6 +283,12 @@ internal static class WindowsSuspendedLauncher
         }
         originalFailure?.Throw();
         throw new InvalidOperationException("Native launcher terminated without a result or exception.");
+    }
+
+    private static async Task<string> HoldReaderCompletionForTestAsync(Task<string> reader, Func<Task> gate)
+    {
+        try { return await reader.ConfigureAwait(false); }
+        finally { await gate().ConfigureAwait(false); }
     }
 
     private static async Task<string> ReadBoundedAsync(StreamReader reader, int maxChars, CancellationToken token)

@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 Windows regression correction — 2026-10-20 (NEWEST)
+- User ran `--native-job-close-error-test` after commit `8235026` and it **FAILED** with `Invalid native Job handle close did not fail` at Program.cs:13. The test helper used `new IntPtr(-1)`, but -1 is the Windows current-process pseudo-handle: it was not a valid invalid-handle failure fixture.
+- Corrected helper to use the intentionally unaligned non-pseudo value `0x12345` in commit `4e497d8`. This correction is **awaiting Windows rerun**. If it still fails, investigate the actual Win32 close result rather than weakening the test.
+- Re-run focused `--native-job-close-error-test`, then full `scripts/regression-test.ps1`. No production runner changes; PR #3 remains Draft/unmerged, main unchanged.
+
 ## M3.3 native Job close hardening — 2026-10-20 (NEWEST)
 - Commits: `44ae55b` checks the real Win32 `CloseHandle` result in `ClamJob.Dispose`, captures the Win32 error and consumes ownership before closing (no unsafe retry); `856b263` adds opt-in `--native-job-close-error-test` using a genuine invalid-handle Win32 close failure and verifies a second Dispose is inert; `014d062` continues direct-child wait/termination even if Job close fails, retaining multiple cleanup errors.
 - `ClamJob.Attach` retains both original setup/assignment failure and cleanup failure through `AggregateException`. **Code committed; Windows acceptance pending.** No local .NET SDK available in the assistant execution environment; do not report a build PASS.

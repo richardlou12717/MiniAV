@@ -162,6 +162,12 @@
 - Run: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-job-close-ownership-test`. If PASS, rerun `--native-forced-reader-join-test` and `--native-overlapped-failure-test`.
 - Production scanner unchanged; PR #3 Draft; main untouched.
 
+### M3.2 post-Job-close fault ownership Windows acceptance (2026-10-19)
+
+- User reported **PASS** after running the new `--native-job-close-ownership-test` from commit `07d84aa`. The fixture exercises real Job closure followed by injected cleanup failure, forced reader join timeout, preservation of both failures, no premature resource disposal, and eventual disposal after the held reader task finishes.
+- The user reply does not separately show output for the suggested `--native-forced-reader-join-test` and `--native-overlapped-failure-test` reruns after this latest change; their previous PASS results remain documented, but don't claim fresh reruns.
+- Remaining gates: lower-level native handle failure behavior, deferred disposal error observability, genuinely stalled kernel I/O, sustained resource/handle tests, and CI. Production `ClamProcessRunner` unchanged; PR #3 Draft, main untouched.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

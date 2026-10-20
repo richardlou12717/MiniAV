@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-overlapped-stress-test")
+{
+    await NativeOverlappedStressRegression.RunAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-job-close-ownership-test")
 {
     await NativeOverlappedPipeRegression.RunJobCloseFailureOwnershipAsync();

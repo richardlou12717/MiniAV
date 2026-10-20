@@ -181,6 +181,13 @@
 - **Windows build/run NOT YET VERIFIED**. Run `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-reader-deferred-cleanup-test` first (previously outstanding), then `--native-overlapped-stress-test`. Report the four handle snapshots exactly.
 - Remain aware of known gaps: genuinely stuck kernel I/O, cleanup callback exceptions, delayed resource disposal diagnostics, CI; do not merge Draft PR #3 or replace production `ClamProcessRunner`.
 
+### M3.2 deferred cleanup observability Windows PASS (2026-10-20)
+
+- User ran `--native-reader-deferred-cleanup-test` after commit `1caa209` and reported **PASS**, with both `M3.2 deferred disposal error observability passed` and `M3.2 deferred reader ownership and exactly-once disposal passed`.
+- This confirms the in-process held-task fixture exposes the injected disposal error and still attempts other resource disposals, as well as deferred ownership and exactly-once release. It does not establish all actual OS cleanup failure outcomes.
+- The newly added `--native-overlapped-stress-test` **has not been run yet**. Next Windows command: `dotnet run --project .\\tests\\MiniAV.ClamAV.Regression\\MiniAV.ClamAV.Regression.csproj -c Release -- --native-overlapped-stress-test`. Record all four handle counts/deltas; inspect trajectory, not just pass/fail.
+- No production integration; PR #3 Draft, main untouched.
+
 ### Blocking tasks — begin here next session
 1. **M3.1 reader lifetime:** guarantee both stdout/stderr reader tasks terminate before disposing their streams on cancel/timeout/overflow. `CreatePipe` handles are synchronous; do *not* switch `FileStream` to `isAsync:true` without replacing pipe creation with genuinely overlapped-capable named pipes or an explicitly validated alternative. Current 5s join may throw but still unwind to stream disposal while a read task may remain. Design, implement and instrument reader quiescence; account for inherited writer endpoints and descendants.
 2. **M3.1 final cleanup:** prove Job kill, native process/thread handles, pipe and attribute-list cleanup on failure. Consider deterministic fault injection for native wait/termination failures and accurate error propagation, without orphaning process or masking original errors. Revisit pending wait task observation and scope of original exceptions.

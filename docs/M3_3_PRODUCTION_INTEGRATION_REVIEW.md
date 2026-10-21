@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 native compatibility Windows PASS — 2026-10-20
+User reports PASS for the opt-in `--native-adapter-compatibility-test` on Windows. The test covers harmless native exit codes 0/1/2 and stdout/stderr, output overflow exception mapping, execution deadline and caller cancellation with explicitly selected overlapped output pipes. Full regression after this change and real clamscan.exe integration are not yet confirmed. Production `ClamProcessRunner`, main and Draft PR #3 remain unchanged.
+
 ## M3.3 isolated native adapter compatibility (2026-10-20; Windows pending)
 - Added an internal, non-production `NativeClamProcessRunnerPrototype` implementing `IClamProcessRunner`. Explicitly opts in to overlapped output pipes, returns the production `ProcessExecution` shape, and translates only the known native output-cap `InvalidDataException` to `ProcessOutputLimitException`; unrelated native errors and double faults are not rewritten.
 - Added `--native-adapter-compatibility-test` to validate exit 0/1/2 with stdout/stderr, overflow translation, timeout and caller cancellation against a harmless native PowerShell child. **Windows result pending.** This does not replace default `ClamProcessRunner`, authorize production integration, validate real ClamAV output, or close outstanding I/O/kernel failure risks.

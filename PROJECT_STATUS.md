@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 retained-writer timeout Windows PASS — 2026-10-20
+- User executed `--native-retained-writer-timeout-test` and provided the output `M3.3 retained-writer descendant timeout and paired reader cleanup passed`.
+- The isolated suspended overlapped launcher fixture observed parent exit with both output readers pending, then enforced execution deadline, reader quiescence and no remaining live marked descendant. This is a confirmed local Windows PASS for this scenario, not a general proof against permanently stuck I/O.
+- Newly added `--native-retained-writer-overflow-test` remains **Windows pending**. Pull the latest branch then run that opt-in test next. No production runner switch, main unchanged, PR #3 Draft.
+
 ## M3.3 retained-writer overflow regression — 2026-10-20 (WINDOWS PENDING)
 - Added opt-in `--native-retained-writer-overflow-test` for isolated suspended `WindowsSuspendedLauncher` with overlapped stdout/stderr: PowerShell parent creates a sleeping descendant, records its PID before flooding both output streams, and exceeding the 1024-character cap must throw `InvalidDataException`; both reader tasks must be terminal and the descendant exited before success.
 - Defensive fixture termination only runs after failure and is not counted as success. This test does **not** require parent exit with both readers pending before overflow (the separate retained-writer timeout and cancellation fixtures cover post-parent-exit readers). Windows acceptance pending.

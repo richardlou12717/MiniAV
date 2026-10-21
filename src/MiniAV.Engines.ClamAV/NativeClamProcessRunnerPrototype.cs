@@ -23,7 +23,7 @@ internal sealed class NativeClamProcessRunnerPrototype : IClamProcessRunner
             return new ProcessExecution(result.ExitCode,
                 result.StandardOutput, result.StandardError);
         }
-        catch (InvalidDataException ex)
+        catch (InvalidDataException ex) when (ex.Message == "Native child output exceeded configured limit.")
         {
             // Translate ONLY an isolated output-cap exception, not arbitrary
             // cleanup/IO faults or AggregateException double faults.

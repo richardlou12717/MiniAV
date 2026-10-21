@@ -6,6 +6,11 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 real I/O Windows acceptance and follow-up (2026-10-20)
+- User reported PASS for `--native-blocked-read-test`, verifying cancellation of actual pending named-pipe reads and EOF after writer close.
+- New pending Windows fixture `--native-blocked-read-deferred-test` connects an actual pending read to `DeferredReaderCleanup`, verifies ownership is not released during a bounded join timeout, then releases the writer and asserts observable deferred cleanup completion. It is a controlled EOF test, not proof of shutdown under permanently stuck I/O.
+- No production runner or main change; Draft PR #3 remains Draft.
+
 ## M3.3 real blocked-read experiment (2026-10-20; Windows pending)
 An opt-in `--native-blocked-read-test` now creates a real overlapped named-pipe server and a connected idle writer, verifies the first read stays pending, cancels it and demands `OperationCanceledException`; then verifies a second pending read yields zero-length EOF after writer close. Bounded watchdogs reject a stuck read rather than call it quiescent. This is a focused I/O primitive test, not proof that the entire native launcher handles permanently stuck I/O. Production `ClamProcessRunner` remains unchanged.
 

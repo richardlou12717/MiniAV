@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 retained-descendant timeout Windows PASS — 2026-10-20
+User ran `--native-retained-writer-timeout-test` and reported `M3.3 retained-writer descendant timeout and paired reader cleanup passed`. This validates one real suspended native launcher deadline scenario where parent exits while descendant retains output writers and both readers remain pending; Job cleanup terminates the marked descendant and readers finish. The complementary `--native-retained-writer-overflow-test` is committed but has not yet been run on Windows.
+
 ## M3.3 retained-descendant overflow fixture (Windows pending)
 Added `--native-retained-writer-overflow-test`: real suspended native launcher, Job descendant marker before both-stream flood, expected native `InvalidDataException` overflow, both reader tasks terminal and no living marked descendant after launcher returns. A separate timeout fixture also remains pending Windows validation. This overflow fixture does not assert direct parent exit with pending readers, and does not prove handling of genuinely failed first close of a valid Job. No production integration.
 

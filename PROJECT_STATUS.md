@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 blocked-read Windows acceptance and deferred ownership — 2026-10-20
+- User reported PASS for `--native-blocked-read-test` after commit `cbbd57b`: real overlapped read cancelled, and a second real pending read returned EOF upon writer close. No verbatim transcript provided.
+- Added new isolated opt-in `--native-blocked-read-deferred-test`: a real idle-writer blocked read forces `DeferredReaderCleanup.JoinOrDeferAsync` timeout, asserts pipe ownership and disposal completion remain pending, closes writer, confirms EOF, and requires deferred completion and release. **Windows PASS not yet established**. It does not prove permanently stuck kernel I/O is cancellable, or change the production launcher.
+- Next Windows command: `dotnet run --project $project -c Release -- --native-blocked-read-deferred-test`. Draft PR #3 stays Draft/unmerged, production runner and main untouched.
+
 ## M3.3 real pending overlapped read test — 2026-10-20 (WINDOWS TEST PENDING)
 - New isolated opt-in `--native-blocked-read-test` checks two **real pending** asynchronous named-pipe reads with an idle connected writer: cancellation must terminate the first read, and explicitly closing the writer must deliver EOF to the second read. This is not a synthetic task gate. Test code in `NativeBlockedReadRegression.cs`, wired in regression Program.
 - The fixture is intentionally in-process and does **not** prove launcher shutdown under a deliberately uncooperative descendant, indefinite OS I/O or process tree fault. Timeouts fail the test rather than being interpreted as success.

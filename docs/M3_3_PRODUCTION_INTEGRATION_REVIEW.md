@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 Windows live-Job acceptance — 2026-10-20
+User reports PASS for `--native-job-external-close-test`. This establishes the fixture's successful close of the last Job handle, observed child termination and correct stale-handle error reporting on subsequent wrapper Dispose. It **does not** show that descendants terminate if the *initial* valid close itself fails. That safety property is still not validated. Keep native production integration gated.
+
 ## M3.3 follow-up live Job test (pending Windows execution)
 - Full `scripts/regression-test.ps1` PASS reported by user (no detailed log provided), after focused `--native-job-close-error-test` PASS.
 - Added optional `--native-job-external-close-test` with a harmless live Job member. Intentionally close its Job handle **successfully** via a test-only helper, then require wrapper Dispose to report the resulting stale-handle `ERROR_INVALID_HANDLE` and assert worker exit. Verify exactly-once wrapper ownership.

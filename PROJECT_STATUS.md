@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 real Job member external-close diagnostic — 2026-10-20 (PENDING WINDOWS TEST)
+- Added `--native-job-external-close-test` to validate a *live* harmless cmd.exe worker attached to a kill-on-close Job. A test-only helper performs a **successful external native close** of the Job handle while the wrapper retains a stale value; the subsequent wrapper Dispose must report native `ERROR_INVALID_HANDLE`, and a second Dispose must be inert. The child must exit following the successful external close.
+- **Distinction:** This is not an injected failure of the *first* and only valid Job close; it does not prove descendant termination when that close genuinely fails. Such a guarantee must not be claimed.
+- New regression code committed but not run on user's Windows. Run `dotnet run --project $project -c Release -- --native-job-external-close-test` first. Production runner and main remain untouched; Draft PR #3 unmerged.
+
 ## M3.3 full Windows regression acceptance — 2026-10-20
 - User reported PASS after running the requested `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1` following the `--native-job-close-error-test` PASS. No verbatim log or per-case details supplied. Both focused and full regression checks are accepted for this checkpoint.
 - Next work targets real child/Job close ordering and distinguishes a successful external close followed by a failing redundant close from a genuinely failed close of the last live Job handle; no claim that the latter terminates descendants.

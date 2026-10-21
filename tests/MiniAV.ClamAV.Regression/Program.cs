@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-retained-writer-timeout-test")
+{
+    await NativeOverlappedPipeRegression.RunRetainedWriterTimeoutAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-blocked-read-paired-test")
 {
     await NativeBlockedReadRegression.RunPairedDeferredAsync();

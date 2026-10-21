@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 real blocked-read experiment (2026-10-20; Windows pending)
+An opt-in `--native-blocked-read-test` now creates a real overlapped named-pipe server and a connected idle writer, verifies the first read stays pending, cancels it and demands `OperationCanceledException`; then verifies a second pending read yields zero-length EOF after writer close. Bounded watchdogs reject a stuck read rather than call it quiescent. This is a focused I/O primitive test, not proof that the entire native launcher handles permanently stuck I/O. Production `ClamProcessRunner` remains unchanged.
+
 ## M3.3 Windows live-Job acceptance — 2026-10-20
 User reports PASS for `--native-job-external-close-test`. This establishes the fixture's successful close of the last Job handle, observed child termination and correct stale-handle error reporting on subsequent wrapper Dispose. It **does not** show that descendants terminate if the *initial* valid close itself fails. That safety property is still not validated. Keep native production integration gated.
 

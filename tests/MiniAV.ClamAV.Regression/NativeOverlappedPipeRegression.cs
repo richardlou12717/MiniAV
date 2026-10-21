@@ -476,6 +476,72 @@ internal static class NativeOverlappedPipeRegression
         }
     }
 
+
+    // Output overflow while an actual Job descendant holds inherited writers.
+    // The parent deliberately floods after creating and recording its child.
+    internal static async Task RunRetainedWriterOverflowAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var marker = Path.Combine(Path.GetTempPath(),
+            "miniav-retained-overflow-" + Guid.NewGuid().ToString("N") + ".pid");
+        var escapedMarker = marker.Replace("'", "''", StringComparison.Ordinal);
+        var escapedExe = exe.Replace("'", "''", StringComparison.Ordinal);
+        var script = "$child = Start-Process -FilePath '" + escapedExe +
+            "' -ArgumentList @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 60') " +
+            "-NoNewWindow -PassThru; " +
+            "[IO.File]::WriteAllText('" + escapedMarker + "', [string]$child.Id); " +
+            "for ($i = 0; $i -lt 5000; $i++) { " +
+            "[Console]::Out.WriteLine('FLOOD'); [Console]::Error.WriteLine('FLOOD') }";
+        int pid = 0, quiesced = 0;
+        try
+        {
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe,
+                    new[] { "-NoProfile", "-NonInteractive", "-Command", script },
+                    null, 768L * 1024 * 1024, 1024, TimeSpan.FromSeconds(20),
+                    CancellationToken.None, useOverlappedOutputPipes: true,
+                    readersQuiescedTestHook: (stdout, stderr) =>
+                    {
+                        if (!stdout || !stderr)
+                            throw new Exception("Overflow left a native reader pending.");
+                        Interlocked.Increment(ref quiesced);
+                    }).WaitAsync(TimeSpan.FromSeconds(25));
+                throw new Exception("Retained-descendant output overflow was ignored.");
+            }
+            catch (InvalidDataException ex) when (
+                ex.Message.Contains("output exceeded", StringComparison.Ordinal)) { }
+
+            if (!File.Exists(marker) ||
+                !int.TryParse(await File.ReadAllTextAsync(marker), out pid) || pid <= 0)
+                throw new Exception("Overflow fixture descendant PID was not recorded.");
+            if (quiesced != 1)
+                throw new Exception("Both-reader cleanup confirmation did not run.");
+            using var descendant = TryGetProcess(pid);
+            if (descendant is not null && !descendant.HasExited)
+                await descendant.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            Console.WriteLine("M3.3 retained-writer descendant overflow and paired reader cleanup passed");
+        }
+        finally
+        {
+            // Defensive fixture cleanup is never counted as launcher success.
+            if (pid == 0 && File.Exists(marker))
+                int.TryParse(await File.ReadAllTextAsync(marker), out pid);
+            if (pid > 0)
+            {
+                using var survivor = TryGetProcess(pid);
+                if (survivor is not null && !survivor.HasExited)
+                {
+                    survivor.Kill(entireProcessTree: true);
+                    await survivor.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                }
+            }
+            if (File.Exists(marker)) File.Delete(marker);
+        }
+    }
+
     private static System.Diagnostics.Process? TryGetProcess(int pid)
     {
         try { return System.Diagnostics.Process.GetProcessById(pid); }

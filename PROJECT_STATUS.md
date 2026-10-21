@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 native process/thread handle-close error reporting — 2026-10-21 (WINDOWS PENDING)
+- Commit `88b63e4` updates isolated `WindowsSuspendedLauncher` outer cleanup to check Win32 `CloseHandle` for process/thread handles, capture `GetLastWin32Error` immediately and retain multiple native cleanup faults alongside the original operation error. It continues closing remaining handles after one close fails and observes `child.Dispose()` failure rather than allowing it to overwrite the first error.
+- This is isolated launcher code only; production Runner and main are not modified. Windows build and regressions after this change **have not yet been run**. Run `scripts/regression-test.ps1`, then opt-in `--native-timeout-cleanup-double-fault-test` and `--native-adapter-compatibility-test`.
+- This does not establish that a failing valid Job close terminates descendants, nor guarantee indefinitely blocked kernel read completion. Draft PR #3 stays Draft/unmerged.
+
 ## M3.3 October 21 CI confirmation and release gate
 - Rechecked GitHub Actions on 2026-10-21: **Windows CI SUCCESS** for feature branch HEAD `44905ef8c358db6e2e1ca4dde2a688320476bc56` (two completed successful Windows CI runs). Draft PR #3 remains open/draft/unmerged. This supersedes the previous in-progress CI snapshot.
 - Previously user-confirmed Windows PASS: `scripts/regression-test.ps1` and opt-in real harmless `--native-real-clam-smoke-test`. These are separate from CI and do not verify malware coverage.

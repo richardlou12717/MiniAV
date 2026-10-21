@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-adapter-compatibility-test")
+{
+    await NativeRunnerCompatibilityRegression.RunAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-retained-writer-overflow-test")
 {
     await NativeOverlappedPipeRegression.RunRetainedWriterOverflowAsync();

@@ -6,6 +6,12 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 follow-up live Job test (pending Windows execution)
+- Full `scripts/regression-test.ps1` PASS reported by user (no detailed log provided), after focused `--native-job-close-error-test` PASS.
+- Added optional `--native-job-external-close-test` with a harmless live Job member. Intentionally close its Job handle **successfully** via a test-only helper, then require wrapper Dispose to report the resulting stale-handle `ERROR_INVALID_HANDLE` and assert worker exit. Verify exactly-once wrapper ownership.
+- This does not model a failing CloseHandle on an otherwise-valid last live Job handle: descendant fate on that event remains unproven. Do not weaken the distinction or merge PR.
+- Windows run still pending.
+
 ## M3.3 focused Windows acceptance (2026-10-20)
 User reported PASS after switching the invalid-handle close fixture away from Windows' `-1` pseudo-handle to `0x12345`. This confirms the focused `--native-job-close-error-test` path (real Win32 error reporting and inert second Dispose) on the user's Windows system. Full regression PASS was not separately identified. Live Job-descendant behavior when the native close fails remains unverified and release-blocking.
 

@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 retained-writer overflow Windows PASS — 2026-10-20
+- User reported PASS for `--native-retained-writer-overflow-test` after the preceding Windows-accepted retained-writer timeout fixture. The isolated suspended launcher creates a descendant before flooding stdout/stderr; overflow is detected, both reader tasks are observed terminal and the marked descendant exits before the fixture passes.
+- Together with previously accepted retained-writer cancellation and timeout fixtures, cancellation/deadline/output-limit have now been covered in targeted native overlapped scenarios. This is **not** a universal proof of I/O termination or absence of handle leaks.
+- Next development should prioritize specific production-integration blockers: native output-limit exception translation, guaranteed overlapped path selection, native Job failure boundaries, and current-head CI/full regression. Do not replace production Runner or merge PR #3 without explicit authorization.
+
 ## M3.3 retained-writer timeout Windows PASS — 2026-10-20
 - User executed `--native-retained-writer-timeout-test` and provided the output `M3.3 retained-writer descendant timeout and paired reader cleanup passed`.
 - The isolated suspended overlapped launcher fixture observed parent exit with both output readers pending, then enforced execution deadline, reader quiescence and no remaining live marked descendant. This is a confirmed local Windows PASS for this scenario, not a general proof against permanently stuck I/O.

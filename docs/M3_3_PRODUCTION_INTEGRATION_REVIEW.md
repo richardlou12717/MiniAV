@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 paired stdout/stderr pending-read ownership (pending Windows)
+New opt-in `--native-blocked-read-paired-test` creates two real overlapped output pipes and deferred-joins their pending reads under one owner. Closing stdout's writer must not dispose resources while stderr remains pending; closing stderr's writer permits terminal completion and disposal. This test is pending Windows acceptance and does not establish an unconditional kernel-I/O cancellation guarantee.
+
 ## M3.3 deferred-owner Windows acceptance (2026-10-20)
 User reported PASS for both `--native-blocked-read-deferred-test` and `--native-blocked-read-deferred-cancel-test`. Tested actual overlapped read pending while owner defers cleanup, then EOF after writer close or cancellation while writer stays connected, followed by cleanup completion. This narrows (but does not eliminate) the kernel I/O lifetime blocker. No evidence yet for permanently stuck reads or complete native-launcher/descendant behavior.
 

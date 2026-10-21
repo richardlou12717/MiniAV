@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-blocked-read-paired-test")
+{
+    await NativeBlockedReadRegression.RunPairedDeferredAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-blocked-read-deferred-cancel-test")
 {
     await NativeBlockedReadRegression.RunDeferredCancellationAsync();

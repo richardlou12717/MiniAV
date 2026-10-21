@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 external-close Windows acceptance — 2026-10-20
+- User reported PASS for `--native-job-external-close-test` after commit `3f76909`. The fixture creates a live harmless Job member, successfully closes the Job handle through its test-only external-close helper, verifies later wrapper `Dispose` reports `ERROR_INVALID_HANDLE` without retrying, and verifies the member terminates.
+- Scope is **successful initial Job close followed by a stale-handle close error**, not a failure to close the only valid Job handle. Native failure on the first valid close and descendant cleanup in that condition remain unproven. No per-case console transcript was supplied.
+- M3.3 next: review native handle ownership and error aggregation; focus on genuine cleanup failures and reader lifecycle rather than treating synthetic post-close errors as proof. Production Runner/main unchanged, PR #3 Draft.
+
 ## M3.3 real Job member external-close diagnostic — 2026-10-20 (PENDING WINDOWS TEST)
 - Added `--native-job-external-close-test` to validate a *live* harmless cmd.exe worker attached to a kill-on-close Job. A test-only helper performs a **successful external native close** of the Job handle while the wrapper retains a stale value; the subsequent wrapper Dispose must report native `ERROR_INVALID_HANDLE`, and a second Dispose must be inert. The child must exit following the successful external close.
 - **Distinction:** This is not an injected failure of the *first* and only valid Job close; it does not prove descendant termination when that close genuinely fails. Such a guarantee must not be claimed.

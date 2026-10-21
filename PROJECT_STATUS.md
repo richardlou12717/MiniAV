@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 deferred cancellation test added — 2026-10-20 (AWAITING WINDOWS)
+- New optional `--native-blocked-read-deferred-cancel-test` uses a genuine pending overlapped named-pipe read and an idle connected writer. After a bounded reader join times out and ownership is deferred, it cancels the read while the writer remains open, asserts the reader terminates as cancelled, then checks that `CleanupCompletion` finishes and the owner disposes resources.
+- This complements the previously added `--native-blocked-read-deferred-test` (writer-close EOF). **Neither test has a reported Windows PASS yet**; do not infer success from the earlier `--native-blocked-read-test` acceptance.
+- Run both with `dotnet run --project $project -c Release -- --native-blocked-read-deferred-test` and `dotnet run --project $project -c Release -- --native-blocked-read-deferred-cancel-test`. These are bounded in-process tests, not an OS guarantee for permanently stuck I/O.
+- Draft PR #3 and main remain untouched; production Runner not replaced.
+
 ## M3.3 blocked-read Windows acceptance and deferred ownership — 2026-10-20
 - User reported PASS for `--native-blocked-read-test` after commit `cbbd57b`: real overlapped read cancelled, and a second real pending read returned EOF upon writer close. No verbatim transcript provided.
 - Added new isolated opt-in `--native-blocked-read-deferred-test`: a real idle-writer blocked read forces `DeferredReaderCleanup.JoinOrDeferAsync` timeout, asserts pipe ownership and disposal completion remain pending, closes writer, confirms EOF, and requires deferred completion and release. **Windows PASS not yet established**. It does not prove permanently stuck kernel I/O is cancellable, or change the production launcher.

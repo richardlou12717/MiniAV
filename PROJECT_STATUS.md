@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 full regression + real native ClamAV Windows acceptance — 2026-10-20
+- User replied “通过” to the two requested Windows checks: `scripts/regression-test.ps1` and opt-in `--native-real-clam-smoke-test "C:\\Program Files\\ClamAV\\clamscan.exe"`. Record **user-reported PASS for both**, but no detailed stdout, installed database version, or per-test log was supplied.
+- The real native smoke runs a harmless file through `ClamAvScanEngine` with explicit `NativeClamProcessRunnerPrototype`, without switching default production Runner. It establishes one real ClamAV NoMatch path, **not** malware detection coverage, database freshness or broader environment compatibility.
+- Remaining M3.3 blockers: current-head CI confirmation, cleanup guarantees on actual first Job CloseHandle failure, indefinite overlapped reader/kernel-I/O edge cases, and eventual separate WPF/CLI production-integration acceptance. Draft PR #3 stays Draft and main stable.
+
 ## M3.3 opt-in real ClamAV native smoke — 2026-10-20 (WINDOWS PENDING)
 - New `NativeRealClamSmokeRegression` and `--native-real-clam-smoke-test <absolute-clamscan.exe> [absolute-database-directory]` use a harmless temp text file, existing `ClamAvScanEngine` parsing/argument generation, and explicit `NativeClamProcessRunnerPrototype` injection. It requires `ScanStatus.NoMatch`; any engine error, missing DB, unexpected stdout/stderr, cleanup fault or incomplete scan fails closed.
 - This **does not** change CLI/WPF or the default `ClamProcessRunner`. The normal `scripts/clamav-local-smoke.ps1` still exercises the existing production path.

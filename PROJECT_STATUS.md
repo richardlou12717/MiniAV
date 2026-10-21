@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 native adapter compatibility Windows acceptance — 2026-10-20
+- User reported **PASS** for opt-in `--native-adapter-compatibility-test` after commit `473cad1`. The fixture exercises exits 0/1/2 with stdout/stderr, native output-cap translation to `ProcessOutputLimitException`, deadline timeout and caller cancellation via `NativeClamProcessRunnerPrototype`.
+- User's brief PASS does **not establish a new full `scripts/regression-test.ps1` run**, real `clamscan.exe` compatibility, or WPF acceptance. Do not claim these passed.
+- Next Windows step: run full `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1`; then review real ClamAV harmless smoke via isolated opt-in adapter, while preserving current production Runner/main and Draft PR #3.
+
 ## M3.3 isolated native adapter compatibility prototype — 2026-10-20 (WINDOWS PENDING)
 - Introduced internal `NativeClamProcessRunnerPrototype : IClamProcessRunner` as an **opt-in-only** compatibility boundary. It calls the isolated suspended launcher with `useOverlappedOutputPipes: true`, existing production-equivalent limits (32,768 chars/stream and 2 GiB Job memory), and returns `ProcessExecution`. `ClamAvScanEngine` still defaults to the original `ClamProcessRunner`.
 - Native `InvalidDataException` with the exact native output-cap message is translated into production `ProcessOutputLimitException`. Other InvalidData/IO/aggregate cleanup faults are not rewritten or hidden. Production default Runner/exception contracts remain unchanged.

@@ -396,6 +396,86 @@ internal static class NativeOverlappedPipeRegression
         Console.WriteLine("M3.3 native timeout plus cleanup double fault passed");
     }
 
+
+    // A real suspended parent exits, but its Job descendant retains both output
+    // writers. Deadline (not caller cancellation) must kill the Job and join reads.
+    internal static async Task RunRetainedWriterTimeoutAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        var marker = Path.Combine(Path.GetTempPath(),
+            "miniav-retained-timeout-" + Guid.NewGuid().ToString("N") + ".pid");
+        var escapedMarker = marker.Replace("'", "''", StringComparison.Ordinal);
+        var escapedExe = exe.Replace("'", "''", StringComparison.Ordinal);
+        var script = "$child = Start-Process -FilePath '" + escapedExe +
+            "' -ArgumentList @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 60') " +
+            "-NoNewWindow -PassThru; " +
+            "[IO.File]::WriteAllText('" + escapedMarker + "', [string]$child.Id); " +
+            "[Console]::Out.WriteLine('PARENT_DONE'); [Console]::Error.WriteLine('PARENT_DONE')";
+        int pid = 0, quiesced = 0;
+        var parentPending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            var run = WindowsSuspendedLauncher.RunAsync(exe,
+                new[] { "-NoProfile", "-NonInteractive", "-Command", script },
+                null, 768L * 1024 * 1024, 32768, TimeSpan.FromSeconds(8),
+                CancellationToken.None, useOverlappedOutputPipes: true,
+                parentExitedReadersPendingTestHook: (stdout, stderr) =>
+                {
+                    if (stdout && stderr) parentPending.TrySetResult();
+                    else parentPending.TrySetException(
+                        new Exception($"Parent exit reader state stdout={stdout} stderr={stderr}"));
+                },
+                readersQuiescedTestHook: (stdout, stderr) =>
+                {
+                    if (!stdout || !stderr)
+                        throw new Exception("Retained-writer timeout readers did not quiesce.");
+                    Interlocked.Increment(ref quiesced);
+                });
+            try
+            {
+                await parentPending.Task.WaitAsync(TimeSpan.FromSeconds(6));
+                if (!File.Exists(marker))
+                    throw new Exception("Descendant marker missing at parent exit.");
+                if (!int.TryParse(await File.ReadAllTextAsync(marker), out pid) || pid <= 0)
+                    throw new Exception("Invalid descendant PID marker.");
+                if (run.IsCompleted)
+                    throw new Exception("Launcher completed before retained-writer deadline.");
+                try
+                {
+                    await run.WaitAsync(TimeSpan.FromSeconds(15));
+                    throw new Exception("Retained-writer deadline was ignored.");
+                }
+                catch (TimeoutException ex) when (ex.Message.Contains("execution deadline", StringComparison.Ordinal)) { }
+                if (quiesced != 1) throw new Exception("Reader quiescence hook not observed.");
+                using var descendant = TryGetProcess(pid);
+                if (descendant is not null && !descendant.HasExited)
+                    await descendant.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                Console.WriteLine("M3.3 retained-writer descendant timeout and paired reader cleanup passed");
+            }
+            finally
+            {
+                if (!run.IsCompleted)
+                    try { await run.WaitAsync(TimeSpan.FromSeconds(15)); }
+                    catch { /* preserve primary assertion; fixture cleanup below */ }
+            }
+        }
+        finally
+        {
+            if (pid > 0)
+            {
+                using var survivor = TryGetProcess(pid);
+                if (survivor is not null && !survivor.HasExited)
+                {
+                    survivor.Kill(entireProcessTree: true);
+                    await survivor.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                }
+            }
+            if (File.Exists(marker)) File.Delete(marker);
+        }
+    }
+
     private static System.Diagnostics.Process? TryGetProcess(int pid)
     {
         try { return System.Diagnostics.Process.GetProcessById(pid); }

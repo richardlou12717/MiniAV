@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 real ClamAV smoke and full regression Windows PASS — 2026-10-20
+User replied PASS to the pair of requested checks: full `scripts/regression-test.ps1` and `--native-real-clam-smoke-test` with the installed `clamscan.exe`. The real test exercises a harmless text file via explicitly injected native prototype and requires NoMatch. These are user-reported results without attached logs. Neither test certifies signature database freshness, complete detection coverage or readiness to replace the production Runner. Remaining release blockers include current-head CI, real failed first Job close semantics and pathological unresolved I/O.
+
 ## M3.3 isolated real ClamAV smoke fixture (Windows pending)
 - Added explicit `--native-real-clam-smoke-test` with an existing absolute `clamscan.exe` path and optional database directory. It injects the internal `NativeClamProcessRunnerPrototype` into `ClamAvScanEngine`, creates a harmless temporary text fixture and requires `ScanStatus.NoMatch`. Thus it covers real argv generation, native suspended/Job-before-resume overlapped child launch, output parsing and exit behavior without changing the production Runner.
 - A PASS is evidence only for the scanned harmless file with the installed database, not signature freshness or comprehensive coverage. Unexpected engine output, stderr, errors and cleanup failure must fail rather than be reported clean.

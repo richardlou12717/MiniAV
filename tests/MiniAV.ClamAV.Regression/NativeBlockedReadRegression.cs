@@ -46,6 +46,57 @@ internal static class NativeBlockedReadRegression
         }
     }
 
+    // A genuine overlapped read remains pending during the owner's bounded join.
+    // Cancellation, not writer EOF, must complete the read and release ownership.
+    internal static async Task RunDeferredCancellationAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var pipe = await WindowsOverlappedOutputPipe.CreateAsync()
+            .WaitAsync(TimeSpan.FromSeconds(12));
+        using var stop = new CancellationTokenSource();
+        Task<int>? pending = null;
+        DeferredReaderCleanup? owner = null;
+        try
+        {
+            pending = pipe.Parent.ReadAsync(new byte[128].AsMemory(), stop.Token).AsTask();
+            await Task.Delay(150);
+            if (pending.IsCompleted)
+                throw new Exception("Real read was not pending before deferred cancellation.");
+
+            owner = new DeferredReaderCleanup(new IDisposable[] { pipe }, pending);
+            try
+            {
+                await owner.JoinOrDeferAsync(TimeSpan.FromMilliseconds(100));
+                throw new Exception("Pending overlapped read unexpectedly joined.");
+            }
+            catch (IOException ex) when (ex.Message.Contains("deferred", StringComparison.Ordinal)) { }
+
+            if (!owner.WasDeferred || owner.ResourcesDisposed || owner.CleanupCompletion.IsCompleted)
+                throw new Exception("Deferred owner released a pipe with a pending read.");
+
+            stop.Cancel(); // Writer stays open: only I/O cancellation can settle the read.
+            try
+            {
+                await pending.WaitAsync(TimeSpan.FromSeconds(5));
+                throw new Exception("Cancelled blocked read unexpectedly succeeded.");
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+
+            var cleanupFailure = await owner.CleanupCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            if (cleanupFailure is not null || !owner.ResourcesDisposed)
+                throw new Exception("Deferred cancellation did not release owned pipe cleanly.");
+            Console.WriteLine("M3.3 real blocked-read deferred cancellation and disposal passed");
+        }
+        finally
+        {
+            stop.Cancel();
+            // If the reader was never transferred, dispose directly.
+            // If transferred, the owner alone must dispose after task completion.
+            if (owner is null)
+                pipe.Dispose();
+        }
+    }
+
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

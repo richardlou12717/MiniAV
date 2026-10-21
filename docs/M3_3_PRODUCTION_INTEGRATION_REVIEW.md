@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 retained-descendant deadline fixture (pending Windows)
+Added isolated `--native-retained-writer-timeout-test`. Parent exits while the two real overlapped output reads remain pending due to a spawned descendant; the native timeout must close Job, stop descendant, and observe both readers terminal. This is the distinct deadline version of the previously accepted cancellation fixture. The test is unverified on Windows; it does not show cleanup guarantees after actual first-close failure of a valid Job handle. Production Runner and main unchanged.
+
 ## M3.3 paired real blocked-reader Windows PASS — 2026-10-20
 User reported PASS for `--native-blocked-read-paired-test`. Shared deferred ownership remained until both actual overlapped pipe reads were terminal. This establishes the bounded test conditions, not universal kernel I/O quiescence or suspended-child descendant guarantees.
 

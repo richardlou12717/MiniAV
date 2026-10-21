@@ -6,6 +6,11 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 isolated real ClamAV smoke fixture (Windows pending)
+- Added explicit `--native-real-clam-smoke-test` with an existing absolute `clamscan.exe` path and optional database directory. It injects the internal `NativeClamProcessRunnerPrototype` into `ClamAvScanEngine`, creates a harmless temporary text fixture and requires `ScanStatus.NoMatch`. Thus it covers real argv generation, native suspended/Job-before-resume overlapped child launch, output parsing and exit behavior without changing the production Runner.
+- A PASS is evidence only for the scanned harmless file with the installed database, not signature freshness or comprehensive coverage. Unexpected engine output, stderr, errors and cleanup failure must fail rather than be reported clean.
+- New full regression and real native smoke Windows results are pending. No production migration, main merge or PR state change.
+
 ## M3.3 native compatibility Windows PASS — 2026-10-20
 User reports PASS for the opt-in `--native-adapter-compatibility-test` on Windows. The test covers harmless native exit codes 0/1/2 and stdout/stderr, output overflow exception mapping, execution deadline and caller cancellation with explicitly selected overlapped output pipes. Full regression after this change and real clamscan.exe integration are not yet confirmed. Production `ClamProcessRunner`, main and Draft PR #3 remain unchanged.
 

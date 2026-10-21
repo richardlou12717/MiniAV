@@ -4,6 +4,10 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 full Windows regression acceptance — 2026-10-20
+- User reported PASS after running the requested `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1` following the `--native-job-close-error-test` PASS. No verbatim log or per-case details supplied. Both focused and full regression checks are accepted for this checkpoint.
+- Next work targets real child/Job close ordering and distinguishes a successful external close followed by a failing redundant close from a genuinely failed close of the last live Job handle; no claim that the latter terminates descendants.
+
 ## M3.3 Windows close-error acceptance — 2026-10-20
 - User reported **PASS** after correcting the `--native-job-close-error-test` invalid-handle fixture to non-pseudo `0x12345` (commit `4e497d8`). The test exercises a real failing `CloseHandle` and verifies one-way handle ownership/no repeated close.
 - User's brief “通过” does **not independently establish** full `scripts/regression-test.ps1` PASS; that remains pending. This invalid-handle fixture does not simulate a live Job close failure with descendants, so cannot establish process-tree termination under that fault.

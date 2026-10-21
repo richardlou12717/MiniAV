@@ -3,6 +3,12 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-job-external-close-test")
+{
+    await NativeJobExternalCloseRegression.RunAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-job-close-error-test")
 {
     if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

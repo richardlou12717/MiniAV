@@ -6,6 +6,11 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 isolated native adapter compatibility (2026-10-20; Windows pending)
+- Added an internal, non-production `NativeClamProcessRunnerPrototype` implementing `IClamProcessRunner`. Explicitly opts in to overlapped output pipes, returns the production `ProcessExecution` shape, and translates only the known native output-cap `InvalidDataException` to `ProcessOutputLimitException`; unrelated native errors and double faults are not rewritten.
+- Added `--native-adapter-compatibility-test` to validate exit 0/1/2 with stdout/stderr, overflow translation, timeout and caller cancellation against a harmless native PowerShell child. **Windows result pending.** This does not replace default `ClamProcessRunner`, authorize production integration, validate real ClamAV output, or close outstanding I/O/kernel failure risks.
+- Production limits mirrored: max 32,768 output characters per stream, 2 GiB memory. Explicit API/launch compatibility and end-to-end smoke remain later gates.
+
 ## M3.3 retained-descendant overflow Windows PASS — 2026-10-20
 User reported PASS for `--native-retained-writer-overflow-test`. With prior cancellation and timeout acceptance, the three targeted failure modes now have Windows-tested isolated launcher/Job/overlapped-reader cleanup scenarios involving a descendant. The overflow fixture does not require direct parent exit before overflow, and none of these tests establishes all possible kernel-I/O failure or native Job close scenarios. Remaining blockers are explicit adapter error translation, forcing overlapped pipe use on eventual production integration, native close failure boundaries, and fresh end-to-end/CI verification.
 

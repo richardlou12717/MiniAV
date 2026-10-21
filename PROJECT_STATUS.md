@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 retained-writer overflow regression — 2026-10-20 (WINDOWS PENDING)
+- Added opt-in `--native-retained-writer-overflow-test` for isolated suspended `WindowsSuspendedLauncher` with overlapped stdout/stderr: PowerShell parent creates a sleeping descendant, records its PID before flooding both output streams, and exceeding the 1024-character cap must throw `InvalidDataException`; both reader tasks must be terminal and the descendant exited before success.
+- Defensive fixture termination only runs after failure and is not counted as success. This test does **not** require parent exit with both readers pending before overflow (the separate retained-writer timeout and cancellation fixtures cover post-parent-exit readers). Windows acceptance pending.
+- Previous `--native-retained-writer-timeout-test` has **no reported PASS**; run it first, then the overflow test. Both are opt-in, production runner/main untouched; PR #3 Draft.
+
 ## M3.3 suspended retained-writer deadline regression — 2026-10-20 (WINDOWS PENDING)
 - Added opt-in `--native-retained-writer-timeout-test` in `NativeOverlappedPipeRegression`: suspended PowerShell parent starts a sleeping child via `Start-Process -NoNewWindow`, exits with both output readers still pending, and the isolated overlapped launcher deadline must trigger a `TimeoutException`, quiesce both readers and terminate the observed descendant. Fixture only, no production Runner switch.
 - This complements the earlier Windows-accepted retained-writer **cancellation** case with a true **deadline** route. The test requires observable parent exit with both readers pending, not just an assumed inherited writer. No Windows PASS yet.

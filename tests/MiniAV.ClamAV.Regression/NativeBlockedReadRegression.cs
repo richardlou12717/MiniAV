@@ -97,6 +97,60 @@ internal static class NativeBlockedReadRegression
         }
     }
 
+    // Two real pending overlapped reads share one deferred owner. Closing only
+    // stdout's writer must not release stderr's live read or its pipe.
+    internal static async Task RunPairedDeferredAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        WindowsOverlappedOutputPipe? stdout = null, stderr = null;
+        DeferredReaderCleanup? owner = null;
+        try
+        {
+            stdout = await WindowsOverlappedOutputPipe.CreateAsync().WaitAsync(TimeSpan.FromSeconds(12));
+            stderr = await WindowsOverlappedOutputPipe.CreateAsync().WaitAsync(TimeSpan.FromSeconds(12));
+            var outRead = stdout.Parent.ReadAsync(new byte[128].AsMemory()).AsTask();
+            var errRead = stderr.Parent.ReadAsync(new byte[128].AsMemory()).AsTask();
+            await Task.Delay(150);
+            if (outRead.IsCompleted || errRead.IsCompleted)
+                throw new Exception("Both idle-writer reads must be pending before cleanup.");
+
+            owner = new DeferredReaderCleanup(new IDisposable[] { stdout, stderr }, outRead, errRead);
+            try
+            {
+                await owner.JoinOrDeferAsync(TimeSpan.FromMilliseconds(100));
+                throw new Exception("Paired pending reads unexpectedly joined.");
+            }
+            catch (IOException ex) when (ex.Message.Contains("deferred", StringComparison.Ordinal)) { }
+
+            if (!owner.WasDeferred || owner.ResourcesDisposed || owner.CleanupCompletion.IsCompleted)
+                throw new Exception("Paired owner prematurely released blocked reads.");
+            stdout.CloseChildWriter();
+            if (await outRead.WaitAsync(TimeSpan.FromSeconds(5)) != 0)
+                throw new Exception("Stdout did not reach EOF.");
+            if (errRead.IsCompleted || owner.ResourcesDisposed || owner.CleanupCompletion.IsCompleted)
+                throw new Exception("Stdout EOF incorrectly released pending stderr ownership.");
+            stderr.CloseChildWriter();
+            if (await errRead.WaitAsync(TimeSpan.FromSeconds(5)) != 0)
+                throw new Exception("Stderr did not reach EOF.");
+            var failure = await owner.CleanupCompletion.WaitAsync(TimeSpan.FromSeconds(5));
+            if (failure is not null || !owner.ResourcesDisposed)
+                throw new Exception("Paired deferred owner failed to dispose after both reads.");
+            Console.WriteLine("M3.3 paired real blocked stdout/stderr deferred ownership passed");
+        }
+        finally
+        {
+            // Break both reads on a failed assertion. The owner must exclusively
+            // dispose transferred resources once reader tasks reach completion.
+            stdout?.CloseChildWriter();
+            stderr?.CloseChildWriter();
+            if (owner is null)
+            {
+                stdout?.Dispose();
+                stderr?.Dispose();
+            }
+        }
+    }
+
     internal static async Task RunAsync()
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

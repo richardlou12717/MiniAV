@@ -66,6 +66,17 @@ internal sealed class ClamJob : IDisposable
         }
     }
 
+    // Test-only: imitate an external owner prematurely closing the live Job
+    // handle while this wrapper still holds its stale numeric value.
+    // A successful close (not the subsequent failed Dispose) kills Job members.
+    internal void CloseExternallyForTest()
+    {
+        var h = Volatile.Read(ref handle);
+        if (h == IntPtr.Zero) throw new InvalidOperationException("Job already disposed.");
+        if (!CloseHandle(h))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "External Job close fixture failed.");
+    }
+
     public void Dispose()
     {
         var h = Interlocked.Exchange(ref handle, IntPtr.Zero);

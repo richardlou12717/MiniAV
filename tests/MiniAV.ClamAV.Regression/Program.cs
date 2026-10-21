@@ -3,6 +3,14 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using MiniAV.Engines.ClamAV;
 
+if (args.Length > 0 && args[0] == "--native-real-clam-smoke-test")
+{
+    if (args.Length < 2 || args.Length > 3)
+        throw new ArgumentException("Usage: --native-real-clam-smoke-test <absolute-clamscan.exe> [absolute-database-directory]");
+    await NativeRealClamSmokeRegression.RunAsync(args[1], args.Length == 3 ? args[2] : null);
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-adapter-compatibility-test")
 {
     await NativeRunnerCompatibilityRegression.RunAsync();

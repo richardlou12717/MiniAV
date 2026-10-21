@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 October 21 CI confirmation and release gate
+- Rechecked GitHub Actions on 2026-10-21: **Windows CI SUCCESS** for feature branch HEAD `44905ef8c358db6e2e1ca4dde2a688320476bc56` (two completed successful Windows CI runs). Draft PR #3 remains open/draft/unmerged. This supersedes the previous in-progress CI snapshot.
+- Previously user-confirmed Windows PASS: `scripts/regression-test.ps1` and opt-in real harmless `--native-real-clam-smoke-test`. These are separate from CI and do not verify malware coverage.
+- M3.3 readiness assessment: isolated adapter contract and tested native failure paths are encouraging but **do not authorize replacing the production `ClamProcessRunner`**. Outstanding: a genuine first valid Job `CloseHandle` failure leaves descendant termination unconfirmed; deferred owner keeps reader resources until terminal completion but cannot guarantee permanently stalled kernel I/O settles; native launcher thread/process `CloseHandle` return values are not all checked; post-integration WPF/CLI and CI acceptance not yet run.
+- Preserve `main`, production Runner and Draft PR #3. Next work should target observable native thread/process close errors without masking the primary failure, and a fail-closed recovery strategy for an unconfirmed Job kill.
+
 ## M3.3 full regression + real native ClamAV Windows acceptance — 2026-10-20
 - User replied “通过” to the two requested Windows checks: `scripts/regression-test.ps1` and opt-in `--native-real-clam-smoke-test "C:\\Program Files\\ClamAV\\clamscan.exe"`. Record **user-reported PASS for both**, but no detailed stdout, installed database version, or per-test log was supplied.
 - The real native smoke runs a harmless file through `ClamAvScanEngine` with explicit `NativeClamProcessRunnerPrototype`, without switching default production Runner. It establishes one real ClamAV NoMatch path, **not** malware detection coverage, database freshness or broader environment compatibility.

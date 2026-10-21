@@ -6,6 +6,12 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 CI verification and disposition — 2026-10-21
+- GitHub Actions query for `44905ef8c358db6e2e1ca4dde2a688320476bc56` returned two Windows CI workflows **completed/success**. PR #3 remains draft, open, unmerged.
+- Existing user Windows PASS for full regression and isolated real harmless ClamAV smoke remains accepted, but no post-integration WPF or CLI acceptance has been run because the default Runner was deliberately not changed.
+- Remaining P0 boundaries: actual first-close failure of a live valid Job handle is not shown to kill descendants; `DeferredReaderCleanup` cannot force completion of a genuinely indefinitely stuck underlying read. Native launcher also ignores Boolean return values from `CloseHandle` on raw process/thread handles in its outer finally; these may conceal cleanup faults. Design explicit error collection and original-error preservation before production migration.
+- **Decision**: remain at M3.3, no production Runner replacement, no PR ready/merge and no main changes until these boundaries are addressed and Windows reacceptance is obtained.
+
 ## M3.3 real ClamAV smoke and full regression Windows PASS — 2026-10-20
 User replied PASS to the pair of requested checks: full `scripts/regression-test.ps1` and `--native-real-clam-smoke-test` with the installed `clamscan.exe`. The real test exercises a harmless text file via explicitly injected native prototype and requires NoMatch. These are user-reported results without attached logs. Neither test certifies signature database freshness, complete detection coverage or readiness to replace the production Runner. Remaining release blockers include current-head CI, real failed first Job close semantics and pathological unresolved I/O.
 

@@ -4,6 +4,10 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 paired blocked stdout/stderr Windows acceptance — 2026-10-20
+- User reported PASS for `--native-blocked-read-paired-test` after commit `1570cb7`. The fixture tests both real overlapped stdout/stderr reads pending while a shared DeferredReaderCleanup defers, one writer EOF not permitting premature cleanup, and final owner disposal only after both reads complete.
+- This is an in-process fixture, not yet end-to-end native suspended-child/descendant handling. Further M3.3 work remains. Production Runner/main unchanged; Draft PR #3 unmerged.
+
 ## M3.3 paired real blocked-reader fixture — 2026-10-20 (WINDOWS PENDING)
 - Added `--native-blocked-read-paired-test` with separate real overlapped stdout/stderr pipes held by one `DeferredReaderCleanup`. Both reads must be pending before join timeout; after stdout writer closes, stderr must remain pending and owner resources undisposed; only after stderr EOF may the owner complete disposal.
 - This is an in-process two-pipe primitive fixture, not a substitute for suspended native child and actual retained-descendant behavior. No Windows PASS yet. Run `dotnet run --project $project -c Release -- --native-blocked-read-paired-test`.

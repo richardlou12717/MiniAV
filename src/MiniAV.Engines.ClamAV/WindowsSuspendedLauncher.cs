@@ -301,9 +301,16 @@ internal static class WindowsSuspendedLauncher
             }
             finally
             {
-                if (native.ThreadHandle != IntPtr.Zero) CloseHandle(native.ThreadHandle);
-                if (native.ProcessHandle != IntPtr.Zero) CloseHandle(native.ProcessHandle);
-                child?.Dispose();
+                // Close each owned native handle exactly once. Record failures without
+                // skipping the remaining resources or masking the original operation.
+                if (native.ThreadHandle != IntPtr.Zero && !CloseHandle(native.ThreadHandle))
+                    cleanupFailure = CombineCleanupFailures(cleanupFailure,
+                        new Win32Exception(Marshal.GetLastWin32Error(), "Native thread handle close failed."));
+                if (native.ProcessHandle != IntPtr.Zero && !CloseHandle(native.ProcessHandle))
+                    cleanupFailure = CombineCleanupFailures(cleanupFailure,
+                        new Win32Exception(Marshal.GetLastWin32Error(), "Native process handle close failed."));
+                try { child?.Dispose(); }
+                catch (Exception ex) { cleanupFailure = CombineCleanupFailures(cleanupFailure, ex); }
                 if (initialized) DeleteProcThreadAttributeList(attributes);
                 if (listMemory != IntPtr.Zero) Marshal.FreeHGlobal(listMemory);
                 if (attributes != IntPtr.Zero) Marshal.FreeHGlobal(attributes);
@@ -320,6 +327,10 @@ internal static class WindowsSuspendedLauncher
         originalFailure?.Throw();
         throw new InvalidOperationException("Native launcher terminated without a result or exception.");
     }
+
+    private static Exception CombineCleanupFailures(Exception? previous, Exception next) =>
+        previous is null ? next :
+        new AggregateException("Multiple native cleanup operations failed.", previous, next);
 
     private static async Task<string> HoldReaderCompletionForTestAsync(Task<string> reader, Func<Task> gate)
     {

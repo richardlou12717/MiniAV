@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 native raw handle-close observability change — 2026-10-21 (pending Windows validation)
+The isolated launcher now inspects process/thread `CloseHandle` Boolean results and captures Win32 error immediately; errors are accumulated rather than silently ignored or prematurely preventing the remaining native close operations. `child.Dispose` exceptions are likewise recorded. This retains the original/cleanup aggregate exception behavior. No default production Runner change; run full Windows regression plus timeout double-fault and native adapter compatibility opt-in tests. Successful handle-close regressions do not certify a genuinely failing Job close of its only live handle or a forever-stalled kernel read.
+
 ## M3.3 CI verification and disposition — 2026-10-21
 - GitHub Actions query for `44905ef8c358db6e2e1ca4dde2a688320476bc56` returned two Windows CI workflows **completed/success**. PR #3 remains draft, open, unmerged.
 - Existing user Windows PASS for full regression and isolated real harmless ClamAV smoke remains accepted, but no post-integration WPF or CLI acceptance has been run because the default Runner was deliberately not changed.

@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 isolated native adapter compatibility prototype — 2026-10-20 (WINDOWS PENDING)
+- Introduced internal `NativeClamProcessRunnerPrototype : IClamProcessRunner` as an **opt-in-only** compatibility boundary. It calls the isolated suspended launcher with `useOverlappedOutputPipes: true`, existing production-equivalent limits (32,768 chars/stream and 2 GiB Job memory), and returns `ProcessExecution`. `ClamAvScanEngine` still defaults to the original `ClamProcessRunner`.
+- Native `InvalidDataException` with the exact native output-cap message is translated into production `ProcessOutputLimitException`. Other InvalidData/IO/aggregate cleanup faults are not rewritten or hidden. Production default Runner/exception contracts remain unchanged.
+- New opt-in Windows `--native-adapter-compatibility-test` covers harmless PowerShell exit codes 0/1/2 with both stdout/stderr, two-stream overflow translation, deadline and caller cancellation. **Not yet run on Windows; no PASS asserted.**
+- Run after pull: `dotnet run --project $project -c Release -- --native-adapter-compatibility-test`. Then full `scripts/regression-test.ps1` on success. This test is not proof of real `clamscan.exe` behavior or WPF acceptance; production switch still blocked. Draft PR #3 stays Draft and main stable.
+
 ## M3.3 retained-writer overflow Windows PASS — 2026-10-20
 - User reported PASS for `--native-retained-writer-overflow-test` after the preceding Windows-accepted retained-writer timeout fixture. The isolated suspended launcher creates a descendant before flooding stdout/stderr; overflow is detected, both reader tasks are observed terminal and the marked descendant exits before the fixture passes.
 - Together with previously accepted retained-writer cancellation and timeout fixtures, cancellation/deadline/output-limit have now been covered in targeted native overlapped scenarios. This is **not** a universal proof of I/O termination or absence of handle leaks.

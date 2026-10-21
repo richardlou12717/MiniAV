@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 opt-in real ClamAV native smoke — 2026-10-20 (WINDOWS PENDING)
+- New `NativeRealClamSmokeRegression` and `--native-real-clam-smoke-test <absolute-clamscan.exe> [absolute-database-directory]` use a harmless temp text file, existing `ClamAvScanEngine` parsing/argument generation, and explicit `NativeClamProcessRunnerPrototype` injection. It requires `ScanStatus.NoMatch`; any engine error, missing DB, unexpected stdout/stderr, cleanup fault or incomplete scan fails closed.
+- This **does not** change CLI/WPF or the default `ClamProcessRunner`. The normal `scripts/clamav-local-smoke.ps1` still exercises the existing production path.
+- Windows test **not yet run**. Example: `dotnet run --project $project -c Release -- --native-real-clam-smoke-test "C:\\Program Files\\ClamAV\\clamscan.exe"` (optionally append absolute database directory). This test does not verify signatures' freshness or exhaustive malware coverage.
+- Following user PASS for `--native-adapter-compatibility-test`, a new full `scripts/regression-test.ps1` PASS remains unconfirmed. Run full regression and this opt-in real smoke before considering further integration. Keep PR #3 Draft/unmerged and main stable.
+
 ## M3.3 native adapter compatibility Windows acceptance — 2026-10-20
 - User reported **PASS** for opt-in `--native-adapter-compatibility-test` after commit `473cad1`. The fixture exercises exits 0/1/2 with stdout/stderr, native output-cap translation to `ProcessOutputLimitException`, deadline timeout and caller cancellation via `NativeClamProcessRunnerPrototype`.
 - User's brief PASS does **not establish a new full `scripts/regression-test.ps1` run**, real `clamscan.exe` compatibility, or WPF acceptance. Do not claim these passed.

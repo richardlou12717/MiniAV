@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 real pending overlapped read test — 2026-10-20 (WINDOWS TEST PENDING)
+- New isolated opt-in `--native-blocked-read-test` checks two **real pending** asynchronous named-pipe reads with an idle connected writer: cancellation must terminate the first read, and explicitly closing the writer must deliver EOF to the second read. This is not a synthetic task gate. Test code in `NativeBlockedReadRegression.cs`, wired in regression Program.
+- The fixture is intentionally in-process and does **not** prove launcher shutdown under a deliberately uncooperative descendant, indefinite OS I/O or process tree fault. Timeouts fail the test rather than being interpreted as success.
+- Run after pull: `dotnet run --project $project -c Release -- --native-blocked-read-test`. On PASS, review coupling to `DeferredReaderCleanup` and extend to native suspended child without altering production Runner. PR #3 remains Draft, main unchanged.
+
 ## M3.3 external-close Windows acceptance — 2026-10-20
 - User reported PASS for `--native-job-external-close-test` after commit `3f76909`. The fixture creates a live harmless Job member, successfully closes the Job handle through its test-only external-close helper, verifies later wrapper `Dispose` reports `ERROR_INVALID_HANDLE` without retrying, and verifies the member terminates.
 - Scope is **successful initial Job close followed by a stale-handle close error**, not a failure to close the only valid Job handle. Native failure on the first valid close and descendant cleanup in that condition remain unproven. No per-case console transcript was supplied.

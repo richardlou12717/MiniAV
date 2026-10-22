@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 Windows reacceptance after raw handle cleanup change — 2026-10-21
+User confirmed all three commands PASS: full `regression-test.ps1`, isolated `--native-timeout-cleanup-double-fault-test`, and `--native-adapter-compatibility-test`. These are user-reported Windows results, not independently captured console logs. Handle-close error collection is now present, but real failing native close of a valid Job/process/thread handle and permanently stuck kernel I/O still lack guaranteed recovery. Preserve these as release blockers; do not integrate default Runner or merge PR #3.
+
 ## M3.3 native raw handle-close observability change — 2026-10-21 (pending Windows validation)
 The isolated launcher now inspects process/thread `CloseHandle` Boolean results and captures Win32 error immediately; errors are accumulated rather than silently ignored or prematurely preventing the remaining native close operations. `child.Dispose` exceptions are likewise recorded. This retains the original/cleanup aggregate exception behavior. No default production Runner change; run full Windows regression plus timeout double-fault and native adapter compatibility opt-in tests. Successful handle-close regressions do not certify a genuinely failing Job close of its only live handle or a forever-stalled kernel read.
 

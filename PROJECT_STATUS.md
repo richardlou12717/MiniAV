@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 native raw handle cleanup Windows acceptance — 2026-10-21
+- User confirmed **all three requested Windows commands PASS** after commit `87797ab`: `scripts/regression-test.ps1`, `--native-timeout-cleanup-double-fault-test`, and `--native-adapter-compatibility-test`. No verbatim per-test output was provided.
+- This validates normal full regression and previously covered fault-aggregation/adapter behavior after new process/thread `CloseHandle` error reporting. It does **not** directly force a failed real native process/thread handle close.
+- Remaining M3.3 P0 safety boundaries: first valid Job handle close failure cannot be assumed to kill Job descendants; a never-completing native overlapped read can retain deferred resources indefinitely. Any design must fail closed and avoid claiming cleanup verification where OS termination is unconfirmed.
+- Production `ClamProcessRunner` and main unchanged; Draft PR #3 remains Draft/unmerged.
+
 ## M3.3 native process/thread handle-close error reporting — 2026-10-21 (WINDOWS PENDING)
 - Commit `88b63e4` updates isolated `WindowsSuspendedLauncher` outer cleanup to check Win32 `CloseHandle` for process/thread handles, capture `GetLastWin32Error` immediately and retain multiple native cleanup faults alongside the original operation error. It continues closing remaining handles after one close fails and observes `child.Dispose()` failure rather than allowing it to overwrite the first error.
 - This is isolated launcher code only; production Runner and main are not modified. Windows build and regressions after this change **have not yet been run**. Run `scripts/regression-test.ps1`, then opt-in `--native-timeout-cleanup-double-fault-test` and `--native-adapter-compatibility-test`.

@@ -6,6 +6,7 @@ using System.Windows;
 using Microsoft.Win32;
 using MiniAV.Core;
 using MiniAV.Engines.Hash;
+using MiniAV.Engines.ClamAV;
 
 namespace MiniAV.Wpf;
 
@@ -87,6 +88,30 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) == true) TargetBox.Text = dialog.FolderName;
     }
 
+    private void EngineBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (DatabaseBox is null || ClamExecutableBox is null || ClamDatabaseBox is null) return;
+        var hash = EngineBox.SelectedIndex != 1;
+        DatabaseBox.IsEnabled = hash;
+        BrowseDatabaseButton.IsEnabled = hash;
+        ClamExecutableBox.IsEnabled = !hash;
+        ClamDatabaseBox.IsEnabled = !hash;
+        BrowseClamExecutableButton.IsEnabled = !hash;
+        BrowseClamDatabaseButton.IsEnabled = !hash;
+    }
+
+    private void BrowseClamExecutable_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Choose clamscan.exe", Filter = "ClamAV scanner (clamscan.exe)|clamscan.exe" };
+        if (dialog.ShowDialog(this) == true) ClamExecutableBox.Text = dialog.FileName;
+    }
+
+    private void BrowseClamDatabase_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "Choose ClamAV signature directory" };
+        if (dialog.ShowDialog(this) == true) ClamDatabaseBox.Text = dialog.FolderName;
+    }
+
     private void BrowseDatabase_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFileDialog { Title = "Choose demo signature database", Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*" };
@@ -120,6 +145,7 @@ public partial class MainWindow : Window
         refreshTimer.Tick += (_, _) => FlushPendingResults();
         TargetBox.Text = Path.Combine(Environment.CurrentDirectory, "tests", "fixtures");
         DatabaseBox.Text = Path.Combine(Environment.CurrentDirectory, "signatures", "demo-hashes.json");
+        EngineBox_SelectionChanged(this, null!);
     }
 
     private async void Start_Click(object sender, RoutedEventArgs e)
@@ -161,12 +187,29 @@ public partial class MainWindow : Window
             MaxFileBytes: mibValue is long maxMiB ? maxMiB * 1024L * 1024L : null,
             MaxScanDuration: secondsValue is long seconds ? TimeSpan.FromSeconds(seconds) : null);
 
-        HashScanEngine engine;
-        try { engine = HashScanEngine.Load(dbPath); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
+        IScanEngine engine;
+        if (EngineBox.SelectedIndex == 1)
         {
-            MessageBox.Show(this, ex.Message, "Cannot load signature database", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
+            try
+            {
+                var clamDatabase = ClamDatabaseBox.Text.Trim();
+                engine = new ClamAvScanEngine(ClamExecutableBox.Text.Trim(),
+                    string.IsNullOrWhiteSpace(clamDatabase) ? null : clamDatabase);
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                MessageBox.Show(this, ex.Message, "Invalid ClamAV configuration", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+        }
+        else
+        {
+            try { engine = HashScanEngine.Load(dbPath); }
+            catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or System.Text.Json.JsonException or NotSupportedException)
+            {
+                MessageBox.Show(this, ex.Message, "Cannot load signature database", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
         }
 
         closeGate.ScanStarted();
@@ -183,10 +226,12 @@ public partial class MainWindow : Window
         CancelButton.IsEnabled = true;
         TargetBox.IsEnabled = false;
         DatabaseBox.IsEnabled = false;
+        EngineBox.IsEnabled = ClamExecutableBox.IsEnabled = ClamDatabaseBox.IsEnabled = false;
+        BrowseClamExecutableButton.IsEnabled = BrowseClamDatabaseButton.IsEnabled = false;
         MaxFilesBox.IsEnabled = MaxFileMiBBox.IsEnabled = MaxDurationBox.IsEnabled = false;
         BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = false;
         BusyBar.Visibility = Visibility.Visible;
-        StatusText.Text = "Scanning...";
+        StatusText.Text = EngineBox.SelectedIndex == 1 ? "Scanning using ClamAV (database freshness unverified)..." : "Scanning using demo SHA-256 signatures...";
 
         try
         {
@@ -221,9 +266,10 @@ public partial class MainWindow : Window
             StartButton.IsEnabled = true;
             CancelButton.IsEnabled = false;
             TargetBox.IsEnabled = true;
-            DatabaseBox.IsEnabled = true;
+            EngineBox.IsEnabled = true;
+            EngineBox_SelectionChanged(this, null!);
             MaxFilesBox.IsEnabled = MaxFileMiBBox.IsEnabled = MaxDurationBox.IsEnabled = true;
-            BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = BrowseDatabaseButton.IsEnabled = true;
+            BrowseFileButton.IsEnabled = BrowseFolderButton.IsEnabled = true;
             SaveLogButton.IsEnabled = ResultsBox.Text.Length > 0;
             scanCancellation?.Dispose();
             scanCancellation = null;

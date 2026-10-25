@@ -277,9 +277,20 @@ internal static class WindowsSuspendedLauncher
             {
                 // Even if CloseHandle fails, independently check the direct child.
                 // A failed Job close never proves descendants were terminated.
-                try { job?.Dispose(); }
-                catch (Exception ex) { cleanupFailure = ex; }
-                job = null; // ClamJob consumed its handle; never retry ambiguous close.
+                // Fail closed even if launch fails after Job assignment but before
+                // the inner reader-cleanup scope is entered (for example before ResumeThread).
+                // Explicit termination must be attempted while the Job is still owned.
+                if (originalFailure is not null && job is not null)
+                {
+                    try { job.TerminateMembers(); }
+                    catch (Exception ex) { cleanupFailure = CombineCleanupFailures(cleanupFailure, ex); }
+                }
+                // Transfer ownership before native disposal: a CloseHandle failure
+                // consumes the wrapper and must not lead to a retry of its raw handle.
+                var closingJob = job;
+                job = null;
+                try { closingJob?.Dispose(); }
+                catch (Exception ex) { cleanupFailure = CombineCleanupFailures(cleanupFailure, ex); }
                 if (native.ProcessHandle != IntPtr.Zero)
                 {
                     // Job close triggers process-tree termination asynchronously.

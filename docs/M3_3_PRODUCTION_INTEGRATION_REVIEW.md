@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 consumed-ownership Windows PASS — 2026-10-24
+User reported PASS for the full regression script, `--native-job-close-error-test`, `--native-job-external-close-test`, and `--native-timeout-cleanup-double-fault-test` after launcher Job ownership was cleared before disposal. The evidence supports these four scenarios only; a genuine failure of the first valid Job close and indefinite kernel read completion remain unresolved safety boundaries. Production Runner and main remain unchanged, Draft PR #3 unmerged.
+
 ## M3.3 consumed Job ownership boundary — 2026-10-24
 Review found the isolated launcher cleared its `job` field *after* calling `ClamJob.Dispose`, which could throw on a real native close failure. It now clears the field before invoking Dispose, so the outer cleanup cannot treat an already-consumed Job wrapper as still owned. Error reporting, direct-child wait/termination and deferred-reader ownership remain as before; no claim that a failed first valid Job close kills all descendants. Windows regression after this change is pending. Draft PR #3/main/production runner unchanged.
 

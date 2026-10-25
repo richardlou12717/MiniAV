@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 Job consumed-ownership Windows acceptance — 2026-10-24
+- User reported **PASS for all four requested Windows commands** after ownership fix `aa8dfb0`: `scripts/regression-test.ps1`, `--native-job-close-error-test`, `--native-job-external-close-test`, and `--native-timeout-cleanup-double-fault-test`. No verbatim per-test output was included.
+- This accepts the launcher ownership fix in the tested scenarios. The external-close test starts with a *successful* initial close followed by stale-handle error; it does **not** establish that a genuinely failed first close of the last valid Job handle terminates descendants.
+- Remaining M3.3 blockers: failed first Job close descendant certainty, permanently stalled kernel-I/O/reader lifetime, and fresh production-integration acceptance. Do not switch `ClamProcessRunner` or merge Draft PR #3; main remains stable.
+
 ## M3.3 Job close ownership race fix — 2026-10-24 (WINDOWS PENDING)
 - Code review exposed a double-close hazard in the *isolated* `WindowsSuspendedLauncher` inner cleanup: `job = null` happened only after `job.Dispose()` returned, so a throwing native Job `CloseHandle` left the already-consumed `ClamJob` wrapper reachable by the outer finally. While `ClamJob.Dispose` itself is idempotent, the launcher owner state should be cleared **before** native disposal.
 - Commit `aa8dfb0` transfers ownership into a local and clears `job` before `Dispose`; original cleanup exceptions remain observable and outer cleanup cannot try to act on a consumed Job wrapper. This does **not** prove descendant termination on failed Job close.

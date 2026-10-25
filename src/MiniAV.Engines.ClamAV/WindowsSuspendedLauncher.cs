@@ -183,8 +183,12 @@ internal static class WindowsSuspendedLauncher
                     // throws, the read tasks keep their streams until completion.
                     try
                     {
-                        job?.Dispose();
+                        // Clear the owner before closing. Dispose consumes the
+                        // native handle even if CloseHandle reports failure; the
+                        // outer finally must never retry that ambiguous handle.
+                        var closingJob = job;
                         job = null;
+                        closingJob?.Dispose();
                         afterJobCloseTestHook?.Invoke(); // Test-only post-close fault.
                     }
                     catch (Exception ex)

@@ -59,6 +59,12 @@ if (args.Length > 0 && args[0] == "--native-job-external-close-test")
     return;
 }
 
+if (args.Length > 0 && args[0] == "--native-job-terminate-before-close-test")
+{
+    await NativeJobTerminateRegression.RunAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-job-close-error-test")
 {
     if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

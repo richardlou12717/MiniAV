@@ -1,8 +1,13 @@
 # MiniAV — Project Status / Cross-session Handoff
 
-**Updated:** 2026-10-20  
+**Updated:** 2026-10-24  
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
+
+## M3.3 early-launch failure Job termination Windows PASS — 2026-10-24
+- After commit `fee355e5bea03196ca8c7a369a77d9dcb1882a5a`, user reported **PASS for both** `--native-suspended-test` and full `scripts/regression-test.ps1` on Windows (no verbatim stdout supplied).
+- The isolated `WindowsSuspendedLauncher` outer cleanup now explicitly requests Job termination on early launch failure while an owned Job handle exists, prior to consuming/closing it. Native termination and close failures remain observable; the direct-child cleanup path remains.
+- These passes do **not** prove descendant termination when the initial close of a live valid Job handle genuinely fails, nor resolution of indefinitely blocked kernel I/O. Both P0 constraints remain open. Production `ClamProcessRunner` and `main` unchanged; PR #3 stays Draft/unmerged.
 
 ## M3.3 failure-path explicit Job termination Windows PASS — 2026-10-24
 - User reported **all five checks PASS** after the isolated launcher failure-path `TerminateMembers()` integration (`f388d36`): full `scripts/regression-test.ps1`, `--native-overlapped-failure-test`, `--native-retained-writer-timeout-test`, `--native-retained-writer-overflow-test`, and `--native-adapter-compatibility-test`. No detailed console logs provided.

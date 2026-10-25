@@ -77,6 +77,20 @@ internal sealed class ClamJob : IDisposable
             throw new Win32Exception(Marshal.GetLastWin32Error(), "External Job close fixture failed.");
     }
 
+    // Explicit termination while the Job handle is still owned and valid.
+    // Unlike KILL_ON_JOB_CLOSE, this does not rely on CloseHandle succeeding.
+    // A successful call requests termination; callers must still confirm exit.
+    internal void TerminateMembers()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var h = Volatile.Read(ref handle);
+        if (h == IntPtr.Zero)
+            throw new ObjectDisposedException(nameof(ClamJob));
+        if (!TerminateJobObject(h, 91))
+            throw new Win32Exception(Marshal.GetLastWin32Error(),
+                "Explicit Job member termination failed.");
+    }
+
     public void Dispose()
     {
         var h = Interlocked.Exchange(ref handle, IntPtr.Zero);
@@ -131,6 +145,10 @@ internal sealed class ClamJob : IDisposable
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool TerminateJobObject(IntPtr job, uint exitCode);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

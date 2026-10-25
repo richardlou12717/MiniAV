@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 explicit Job termination Windows PASS — 2026-10-24
+User confirmed PASS for `--native-job-terminate-before-close-test` and subsequent full `scripts/regression-test.ps1`. The experimental TerminateJobObject primitive has now been validated against a live harmless Windows Job member with exit confirmation. No evidence yet of recovery after an actual failed initial Job CloseHandle, nor of guaranteed completion of indefinitely stalled kernel I/O; do not change default production Runner or merge Draft PR #3.
+
 ## M3.3 explicit Job termination experiment — 2026-10-24
 - Implemented internal `ClamJob.TerminateMembers` as a distinct Win32 `TerminateJobObject` operation available while a valid Job handle is owned, with Win32 error propagation. Added opt-in `--native-job-terminate-before-close-test` requiring live worker termination and independent Job disposal.
 - Windows run pending. This gives a potential explicit termination route before closing handles, but does **not** guarantee recovery from a failed or already-ambiguous `CloseHandle`, nor replace evidence of descendant termination under that scenario. Do not integrate it into the isolated launcher yet, change production Runner, or merge PR #3 without subsequent verification.

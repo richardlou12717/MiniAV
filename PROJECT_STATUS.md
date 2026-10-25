@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 explicit Job termination Windows acceptance — 2026-10-24
+- User reported **PASS** to the two requested commands: `--native-job-terminate-before-close-test`, followed by `scripts/regression-test.ps1`. This is a user-confirmed result without pasted stdout.
+- Explicit `TerminateJobObject` works for the tested live harmless Job member, with exit confirmation before handle closure; the full regression still passes on Windows.
+- This **does not** simulate an actual first failed `CloseHandle` on the last valid Job handle, and `TerminateMembers()` is **not yet integrated** into the isolated launcher. Permanently blocked overlapped I/O is also unresolved. Keep Draft PR #3 unmerged and production Runner/main unchanged.
+
 ## M3.3 explicit Job termination primitive — 2026-10-24 (WINDOWS PENDING)
 - Added internal `ClamJob.TerminateMembers()` using Win32 `TerminateJobObject` while the Job handle is *still owned and valid*. Native failure reports `Win32Exception`; termination and `CloseHandle` remain separate operations.
 - New opt-in `--native-job-terminate-before-close-test` attaches a harmless live Windows cmd process to a Job, calls explicit termination, confirms worker exit, then disposes Job. This test has **not** yet been run on Windows.

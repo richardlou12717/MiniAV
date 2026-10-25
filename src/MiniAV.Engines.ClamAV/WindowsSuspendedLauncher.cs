@@ -131,6 +131,7 @@ internal static class WindowsSuspendedLauncher
             var readStop = readStopGuard.Value;
             Task<string>? outTask = null, errTask = null;
             Task? waitTask = null;
+            bool operationCompleted = false;
             try
             {
                 outTask = ReadBoundedAsync(outReader, maxCharsPerStream, readStop.Token);
@@ -157,7 +158,9 @@ internal static class WindowsSuspendedLauncher
                     pending.Remove(completed);
                 }
                 token.ThrowIfCancellationRequested();
-                return new Result(child.ExitCode, outTask.Result, errTask.Result);
+                var result = new Result(child.ExitCode, outTask.Result, errTask.Result);
+                operationCompleted = true;
+                return result;
             }
             finally
             {
@@ -177,8 +180,16 @@ internal static class WindowsSuspendedLauncher
                 var owner = new DeferredReaderCleanup(owned, readers.ToArray());
                 Exception? jobCloseFailure = null;
                 Exception? readerJoinFailure = null;
+                Exception? jobTerminateFailure = null;
                 try
                 {
+                    // On failure request Job-wide termination while its handle is
+                    // still owned. Continue closing even if explicit termination fails.
+                    if (!operationCompleted && job is not null)
+                    {
+                        try { job.TerminateMembers(); }
+                        catch (Exception ex) { jobTerminateFailure = ex; }
+                    }
                     // Establish ownership before Job close: even if Job.Dispose()
                     // throws, the read tasks keep their streams until completion.
                     try
@@ -230,13 +241,15 @@ internal static class WindowsSuspendedLauncher
                     asyncStdoutGuard?.Transfer();
                     asyncStderrGuard?.Transfer();
                 }
-                if (jobCloseFailure is not null && readerJoinFailure is not null)
-                    throw new AggregateException("Job close and reader join both failed.",
-                        jobCloseFailure, readerJoinFailure);
+                Exception? nativeCleanupFailure = null;
+                if (jobTerminateFailure is not null)
+                    nativeCleanupFailure = CombineCleanupFailures(nativeCleanupFailure, jobTerminateFailure);
                 if (jobCloseFailure is not null)
-                    ExceptionDispatchInfo.Capture(jobCloseFailure).Throw();
+                    nativeCleanupFailure = CombineCleanupFailures(nativeCleanupFailure, jobCloseFailure);
                 if (readerJoinFailure is not null)
-                    ExceptionDispatchInfo.Capture(readerJoinFailure).Throw();
+                    nativeCleanupFailure = CombineCleanupFailures(nativeCleanupFailure, readerJoinFailure);
+                if (nativeCleanupFailure is not null)
+                    ExceptionDispatchInfo.Capture(nativeCleanupFailure).Throw();
                 if (readers.Any(static task => !task.IsCompleted))
                     throw new IOException("Native pipe reader lifetime could not be confirmed.");
                 readersQuiescedTestHook?.Invoke(outTask?.IsCompleted ?? true,

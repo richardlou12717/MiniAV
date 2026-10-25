@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 failure-path explicit Job termination Windows PASS — 2026-10-24
+- User reported **all five checks PASS** after the isolated launcher failure-path `TerminateMembers()` integration (`f388d36`): full `scripts/regression-test.ps1`, `--native-overlapped-failure-test`, `--native-retained-writer-timeout-test`, `--native-retained-writer-overflow-test`, and `--native-adapter-compatibility-test`. No detailed console logs provided.
+- These validate the tested paths with explicit Job termination before Job close on failed operations. The original production `ClamProcessRunner` remains in use; `main` unchanged and PR #3 Draft/unmerged.
+- **Open P0 safety limits:** genuine first close failure of a live valid Job handle is not guaranteed to terminate descendants; indefinite kernel overlapped I/O can retain deferred-reader resources. Do not imply these are proven solved. Next session: read this file and `docs/M3_3_PRODUCTION_INTEGRATION_REVIEW.md`, check CI, then consider bounded fail-closed recovery/diagnostic design and production integration gates; no merger or Runner switch without user approval.
+
 ## M3.3 explicit failure-path Job termination integration — 2026-10-24 (WINDOWS PENDING)
 - Integrated previously Windows-tested `ClamJob.TerminateMembers()` into the **isolated** `WindowsSuspendedLauncher` inner reader-cleanup path **only when normal operation did not complete**. Before closing the still-owned Job handle, request `TerminateJobObject`, then consume/close Job exactly once and join or defer output readers. The return-success path retains ordinary Job-close semantics.
 - Explicit terminate, Job-close and reader-join exceptions are collected instead of skipping cleanup or falsely reporting success. Existing outer direct-child wait/termination and deferred reader lifetime protection remain. No production `ClamProcessRunner` change and no main/PR merge.

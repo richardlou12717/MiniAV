@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 explicit Job termination primitive — 2026-10-24 (WINDOWS PENDING)
+- Added internal `ClamJob.TerminateMembers()` using Win32 `TerminateJobObject` while the Job handle is *still owned and valid*. Native failure reports `Win32Exception`; termination and `CloseHandle` remain separate operations.
+- New opt-in `--native-job-terminate-before-close-test` attaches a harmless live Windows cmd process to a Job, calls explicit termination, confirms worker exit, then disposes Job. This test has **not** yet been run on Windows.
+- **Limit:** success of `TerminateJobObject` does not by itself prove exit; the test explicitly waits. This primitive is not wired into `WindowsSuspendedLauncher` cleanup, and does not simulate a genuinely failing first valid `CloseHandle`. No production Runner or main change; PR #3 remains Draft.
+- Windows commands: `dotnet run --project $project -c Release -- --native-job-terminate-before-close-test` and `powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\regression-test.ps1`.
+
 ## M3.3 Job consumed-ownership Windows acceptance — 2026-10-24
 - User reported **PASS for all four requested Windows commands** after ownership fix `aa8dfb0`: `scripts/regression-test.ps1`, `--native-job-close-error-test`, `--native-job-external-close-test`, and `--native-timeout-cleanup-double-fault-test`. No verbatim per-test output was included.
 - This accepts the launcher ownership fix in the tested scenarios. The external-close test starts with a *successful* initial close followed by stale-handle error; it does **not** establish that a genuinely failed first close of the last valid Job handle terminates descendants.

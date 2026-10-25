@@ -6,6 +6,9 @@ Date: 2026-10-20. Scope: isolated `WindowsSuspendedLauncher`, `ClamJob`, `ClamPr
 - User-reported Windows PASS: overlapped stdout/stderr launcher smoke, cancellation/timeout/overflow, descendant-retained outputs, double-fault propagation, forced deferred reader join, post-Job-close injected fault, deferred disposal observability, 80-iteration overlapped stress.
 - Stress handle samples after warmup: 20=-1, 40=+4, 60=+9, 80=+8. These are reassuring diagnostics, not proof of leak-freedom.
 
+## M3.3 isolated failure-path termination Windows PASS — 2026-10-24
+User reported PASS for the full regression script and all four opt-in tests: `--native-overlapped-failure-test`, `--native-retained-writer-timeout-test`, `--native-retained-writer-overflow-test`, and `--native-adapter-compatibility-test`, after isolated launcher failure-path explicit Job termination integration. This is user-confirmed, without captured logs. Keep first real valid Job close failure descendant guarantee and permanently stalled kernel-I/O lifetime as unresolved issues. Production Runner/main unchanged; Draft PR #3 remains Draft/unmerged.
+
 ## M3.3 isolated launcher failure-path explicit Job termination — 2026-10-24 (Windows pending)
 - The isolated `WindowsSuspendedLauncher` now invokes `ClamJob.TerminateMembers()` **only when a scan operation fails**, before consuming the Job owner and closing the handle. Native termination failure, Job-close failure and reader-join failure remain observable together; cleanup still proceeds. Normal successful operation is not proactively terminated.
 - Requires Windows confirmation: full regression, native overlapped failure, retained-writer timeout, retained-writer overflow, and adapter compatibility. A successful `TerminateJobObject` return alone does not prove process-tree exit; the existing descendant checks are essential. Failure of the last valid Job close and unending kernel reads are not solved unconditionally.

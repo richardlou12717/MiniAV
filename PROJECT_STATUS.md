@@ -4,6 +4,11 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 explicit failure-path Job termination integration — 2026-10-24 (WINDOWS PENDING)
+- Integrated previously Windows-tested `ClamJob.TerminateMembers()` into the **isolated** `WindowsSuspendedLauncher` inner reader-cleanup path **only when normal operation did not complete**. Before closing the still-owned Job handle, request `TerminateJobObject`, then consume/close Job exactly once and join or defer output readers. The return-success path retains ordinary Job-close semantics.
+- Explicit terminate, Job-close and reader-join exceptions are collected instead of skipping cleanup or falsely reporting success. Existing outer direct-child wait/termination and deferred reader lifetime protection remain. No production `ClamProcessRunner` change and no main/PR merge.
+- **Windows tests pending:** full `scripts/regression-test.ps1`, opt-in `--native-overlapped-failure-test`, `--native-retained-writer-timeout-test`, `--native-retained-writer-overflow-test` and `--native-adapter-compatibility-test`. The implementation still cannot guarantee descendants stop after a truly unsuccessful valid Job close or indefinitely blocked kernel I/O; these remain hard release boundaries.
+
 ## M3.3 explicit Job termination Windows acceptance — 2026-10-24
 - User reported **PASS** to the two requested commands: `--native-job-terminate-before-close-test`, followed by `scripts/regression-test.ps1`. This is a user-confirmed result without pasted stdout.
 - Explicit `TerminateJobObject` works for the tested live harmless Job member, with exit confirmation before handle closure; the full regression still passes on Windows.

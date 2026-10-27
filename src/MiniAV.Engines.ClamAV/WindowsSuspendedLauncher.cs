@@ -30,7 +30,8 @@ internal static class WindowsSuspendedLauncher
         TimeSpan? readerJoinTimeoutTestOverride = null,
         Action<DeferredReaderCleanup>? deferredOwnerTestHook = null,
         Action? afterJobCloseTestHook = null,
-        Action<int>? afterResumeTestHook = null)
+        Action<int>? afterResumeTestHook = null,
+        Action? beforeJobAccountingQueryTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -194,7 +195,7 @@ internal static class WindowsSuspendedLauncher
                         try
                         {
                             job.TerminateMembers();
-                            await ConfirmJobQuiescenceAsync(job).ConfigureAwait(false);
+                            await ConfirmJobQuiescenceAsync(job, beforeJobAccountingQueryTestHook).ConfigureAwait(false);
                         }
                         catch (Exception ex) { jobTerminateFailure = ex; }
                     }
@@ -293,7 +294,7 @@ internal static class WindowsSuspendedLauncher
                     try
                     {
                         job.TerminateMembers();
-                        await ConfirmJobQuiescenceAsync(job).ConfigureAwait(false);
+                        await ConfirmJobQuiescenceAsync(job, beforeJobAccountingQueryTestHook).ConfigureAwait(false);
                     }
                     catch (Exception ex) { cleanupFailure = CombineCleanupFailures(cleanupFailure, ex); }
                 }
@@ -371,11 +372,12 @@ internal static class WindowsSuspendedLauncher
     // Observe Job-wide termination while the handle is still owned. A return from
     // TerminateJobObject is only a request; zero active processes is the observed
     // result for this bounded interval. Query failure and timeout both fail closed.
-    private static async Task ConfirmJobQuiescenceAsync(ClamJob job)
+    private static async Task ConfirmJobQuiescenceAsync(ClamJob job, Action? beforeQueryTestHook)
     {
         var deadline = Stopwatch.StartNew();
         while (true)
         {
+            beforeQueryTestHook?.Invoke(); // Test-only, never wired into production.
             var active = job.GetActiveProcessCount();
             if (active == 0) return;
             if (deadline.Elapsed >= TimeSpan.FromSeconds(5))

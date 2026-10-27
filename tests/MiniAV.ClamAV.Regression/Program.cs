@@ -169,6 +169,12 @@ if (args.Length > 0 && args[0] == "--native-active-io-cancel-test")
     await NativeLauncherRegression.RunActiveIoCancellationAsync();
     return;
 }
+if (args.Length > 0 && args[0] == "--native-job-accounting-failure-test")
+{
+    await NativeLauncherRegression.RunJobAccountingFailureAsync();
+    return;
+}
+
 if (args.Length > 0 && args[0] == "--native-post-resume-failure-test")
 {
     await NativeLauncherRegression.RunPostResumeFailureAsync();

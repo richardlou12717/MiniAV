@@ -191,7 +191,11 @@ internal static class WindowsSuspendedLauncher
                     // still owned. Continue closing even if explicit termination fails.
                     if (!operationCompleted && job is not null)
                     {
-                        try { job.TerminateMembers(); }
+                        try
+                        {
+                            job.TerminateMembers();
+                            await ConfirmJobQuiescenceAsync(job).ConfigureAwait(false);
+                        }
                         catch (Exception ex) { jobTerminateFailure = ex; }
                     }
                     // Establish ownership before Job close: even if Job.Dispose()
@@ -286,7 +290,11 @@ internal static class WindowsSuspendedLauncher
                 // Explicit termination must be attempted while the Job is still owned.
                 if (originalFailure is not null && job is not null)
                 {
-                    try { job.TerminateMembers(); }
+                    try
+                    {
+                        job.TerminateMembers();
+                        await ConfirmJobQuiescenceAsync(job).ConfigureAwait(false);
+                    }
                     catch (Exception ex) { cleanupFailure = CombineCleanupFailures(cleanupFailure, ex); }
                 }
                 // Transfer ownership before native disposal: a CloseHandle failure
@@ -358,6 +366,22 @@ internal static class WindowsSuspendedLauncher
         }
         originalFailure?.Throw();
         throw new InvalidOperationException("Native launcher terminated without a result or exception.");
+    }
+
+    // Observe Job-wide termination while the handle is still owned. A return from
+    // TerminateJobObject is only a request; zero active processes is the observed
+    // result for this bounded interval. Query failure and timeout both fail closed.
+    private static async Task ConfirmJobQuiescenceAsync(ClamJob job)
+    {
+        var deadline = Stopwatch.StartNew();
+        while (true)
+        {
+            var active = job.GetActiveProcessCount();
+            if (active == 0) return;
+            if (deadline.Elapsed >= TimeSpan.FromSeconds(5))
+                throw new IOException($"Job termination unconfirmed: {active} active member(s) remain.");
+            await Task.Delay(40).ConfigureAwait(false);
+        }
     }
 
     private static Exception CombineCleanupFailures(Exception? previous, Exception next) =>

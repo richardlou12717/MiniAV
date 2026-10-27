@@ -99,6 +99,65 @@ internal static class NativeLauncherRegression
         }
     }
 
+    // Fault just after ResumeThread but before stream readers are established.
+    // This exercises the outer cleanup path rather than the inner reader cleanup.
+    internal static async Task RunPostResumeFailureAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        int pid = 0;
+        try
+        {
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe,
+                    new[] { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 60" },
+                    null, 768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(15),
+                    CancellationToken.None, useOverlappedOutputPipes: true,
+                    afterResumeTestHook: childPid =>
+                    {
+                        pid = childPid;
+                        throw new InjectedPostResumeException();
+                    }).WaitAsync(TimeSpan.FromSeconds(20));
+                throw new Exception("Injected post-resume failure was ignored.");
+            }
+            catch (InjectedPostResumeException) { }
+
+            if (pid <= 0) throw new Exception("Post-resume injection was not reached.");
+            try
+            {
+                using var process = System.Diagnostics.Process.GetProcessById(pid);
+                if (!process.HasExited)
+                    throw new Exception($"Post-resume child still alive after cleanup: pid={pid}.");
+            }
+            catch (ArgumentException)
+            {
+                // The OS may already have removed the exited process.
+            }
+            Console.WriteLine("M3.3 post-resume early-failure Job cleanup passed");
+        }
+        finally
+        {
+            // Defensive cleanup protects the machine but never counts as a PASS.
+            if (pid > 0)
+            {
+                try
+                {
+                    using var survivor = System.Diagnostics.Process.GetProcessById(pid);
+                    if (!survivor.HasExited)
+                    {
+                        survivor.Kill(entireProcessTree: true);
+                        await survivor.WaitForExitAsync();
+                    }
+                }
+                catch (ArgumentException) { }
+            }
+        }
+    }
+
+    private sealed class InjectedPostResumeException : Exception { }
+
     private sealed class InjectedPreResumeException : Exception { }
 
 

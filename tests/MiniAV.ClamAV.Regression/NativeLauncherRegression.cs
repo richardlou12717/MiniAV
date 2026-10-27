@@ -185,8 +185,8 @@ internal static class NativeLauncherRegression
                 throw new Exception("Accounting fault fixture unexpectedly succeeded.");
             }
             catch (AggregateException ex) when (
-                ex.Flatten().InnerExceptions.Any(e => e is InjectedPostResumeException) &&
-                ex.Flatten().InnerExceptions.Any(e => e is InjectedAccountingException))
+                ContainsException<InjectedPostResumeException>(ex) &&
+                ContainsException<InjectedAccountingException>(ex))
             {
                 // Original operation and diagnostic-query faults both survived.
             }
@@ -214,6 +214,12 @@ internal static class NativeLauncherRegression
             }
         }
     }
+
+    private static bool ContainsException<T>(Exception error) where T : Exception =>
+        error is T ||
+        (error is AggregateException aggregate &&
+         aggregate.InnerExceptions.Any(ContainsException<T>)) ||
+        (error.InnerException is not null && ContainsException<T>(error.InnerException));
 
     private sealed class InjectedAccountingException : Exception { }
 

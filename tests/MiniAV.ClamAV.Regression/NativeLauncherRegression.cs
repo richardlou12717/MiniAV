@@ -156,6 +156,67 @@ internal static class NativeLauncherRegression
         }
     }
 
+    // Failure of the Job-wide accounting query must never mask the original
+    // post-resume fault. The outer cleanup must still reap the direct child.
+    internal static async Task RunJobAccountingFailureAsync()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell", "v1.0", "powershell.exe");
+        int pid = 0, queries = 0;
+        try
+        {
+            try
+            {
+                await WindowsSuspendedLauncher.RunAsync(exe,
+                    new[] { "-NoProfile", "-NonInteractive", "-Command", "Start-Sleep -Seconds 60" },
+                    null, 768L * 1024 * 1024, 4096, TimeSpan.FromSeconds(15),
+                    CancellationToken.None, useOverlappedOutputPipes: true,
+                    afterResumeTestHook: childPid =>
+                    {
+                        pid = childPid;
+                        throw new InjectedPostResumeException();
+                    },
+                    beforeJobAccountingQueryTestHook: () =>
+                    {
+                        queries++;
+                        throw new InjectedAccountingException();
+                    }).WaitAsync(TimeSpan.FromSeconds(20));
+                throw new Exception("Accounting fault fixture unexpectedly succeeded.");
+            }
+            catch (AggregateException ex) when (
+                ex.Flatten().InnerExceptions.Any(e => e is InjectedPostResumeException) &&
+                ex.Flatten().InnerExceptions.Any(e => e is InjectedAccountingException))
+            {
+                // Original operation and diagnostic-query faults both survived.
+            }
+            if (pid <= 0 || queries != 1)
+                throw new Exception($"Fault hooks not reached as expected: pid={pid}, queries={queries}.");
+            using var child = System.Diagnostics.Process.GetProcessById(pid);
+            if (!child.HasExited)
+                throw new Exception($"Direct child survived the accounting-query fault: pid={pid}.");
+            Console.WriteLine("M3.3 Job accounting query fault aggregation and direct-child cleanup passed");
+        }
+        finally
+        {
+            if (pid > 0)
+            {
+                try
+                {
+                    using var child = System.Diagnostics.Process.GetProcessById(pid);
+                    if (!child.HasExited)
+                    {
+                        child.Kill(entireProcessTree: true);
+                        await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(8));
+                    }
+                }
+                catch (ArgumentException) { }
+            }
+        }
+    }
+
+    private sealed class InjectedAccountingException : Exception { }
+
     private sealed class InjectedPostResumeException : Exception { }
 
     private sealed class InjectedPreResumeException : Exception { }

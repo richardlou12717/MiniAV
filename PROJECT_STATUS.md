@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 Job accounting query-failure Windows PASS — 2026-10-26
+- User reported **PASS for all four checks** after commit `76eb3264a1cf5af969a87468d2ffa21fa96fdd0c`: `--native-job-accounting-failure-test`, `--native-post-resume-failure-test`, `--native-retained-writer-timeout-test`, and full `scripts/regression-test.ps1`. No detailed console stdout supplied.
+- GitHub Actions Windows CI for that commit independently returned **completed/success**.
+- New test-only failure hook injects a Job accounting-query error after a post-ResumeThread operation fault. The regression checks both nested exceptions are retained and the direct child exits despite diagnostic failure. This is controlled fault injection, not a genuine OS `QueryInformationJobObject` failure.
+- **P0 remain open:** first actual valid Job-handle close failure leaves descendant certainty unproven; indefinitely blocked kernel I/O may retain reader resources. Isolated launcher only; production `ClamProcessRunner` and stable `main` unchanged; Draft PR #3 unmerged.
+
 ## M3.3 Job process-count confirmation Windows PASS — 2026-10-26
 - User reported **PASS for all six requested Windows checks** following commit `5b6153fbc4ed7d87ca3410d5e5e657c9e09d17a5`: `--native-job-terminate-before-close-test`, `--native-pre-resume-failure-test`, `--native-post-resume-failure-test`, `--native-retained-writer-timeout-test`, `--native-retained-writer-overflow-test`, and full `scripts/regression-test.ps1`. No detailed stdout was provided.
 - GitHub Actions Windows CI for that commit independently returned **completed/success**.

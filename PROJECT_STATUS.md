@@ -4,6 +4,12 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## M3.3 Job process-count confirmation Windows PASS — 2026-10-26
+- User reported **PASS for all six requested Windows checks** following commit `5b6153fbc4ed7d87ca3410d5e5e657c9e09d17a5`: `--native-job-terminate-before-close-test`, `--native-pre-resume-failure-test`, `--native-post-resume-failure-test`, `--native-retained-writer-timeout-test`, `--native-retained-writer-overflow-test`, and full `scripts/regression-test.ps1`. No detailed stdout was provided.
+- GitHub Actions Windows CI for that commit independently returned **completed/success**.
+- Isolated launcher now requests `TerminateJobObject` on covered failure paths and observes `QueryInformationJobObject` active member count with a bounded wait *before* consuming the Job handle. Failed queries or nonzero count at the deadline remain cleanup errors; original failure is preserved.
+- **Not resolved:** real initial valid Job handle `CloseHandle` failure descendant certainty, indefinite kernel-overlapped-I/O resource retention, and full production switch validation. Main and default production `ClamProcessRunner` unchanged; PR #3 must remain Draft/unmerged.
+
 ## M3.3 pre-/post-ResumeThread failure Windows acceptance — 2026-10-26
 - User reported **PASS for all three** requested Windows commands after test additions through commit `74122ac8433f20ef816cc2ab39d72397b3198685`: `--native-pre-resume-failure-test`, `--native-post-resume-failure-test`, and full `scripts/regression-test.ps1`. Detailed console output was not supplied.
 - GitHub Actions Windows CI for that test commit was independently checked and returned **completed/success**.

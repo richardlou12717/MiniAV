@@ -1,8 +1,15 @@
 # MiniAV — Project Status / Cross-session Handoff
 
-**Updated:** 2026-10-24  
+**Updated:** 2026-10-26  
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
+
+## M3.3 pre-/post-ResumeThread failure Windows acceptance — 2026-10-26
+- User reported **PASS for all three** requested Windows commands after test additions through commit `74122ac8433f20ef816cc2ab39d72397b3198685`: `--native-pre-resume-failure-test`, `--native-post-resume-failure-test`, and full `scripts/regression-test.ps1`. Detailed console output was not supplied.
+- GitHub Actions Windows CI for that test commit was independently checked and returned **completed/success**.
+- Post-resume opt-in fixture injects failure immediately after `ResumeThread`, before stream-reader ownership is established, verifies preserved injected error and the direct child has exited. This does not prove every possible descendant exit or Job-close failure behavior.
+- **P0 remains open:** a genuinely failing first close of the final valid Job handle does not guarantee descendant termination; indefinitely blocked kernel I/O can retain deferred-reader resources.
+- Stable `main` and default production `ClamProcessRunner` unchanged; PR #3 remains Draft/open/unmerged. Continue isolated safety hardening; no production Runner switch without approval.
 
 ## M3.3 early-launch failure Job termination Windows PASS — 2026-10-24
 - After commit `fee355e5bea03196ca8c7a369a77d9dcb1882a5a`, user reported **PASS for both** `--native-suspended-test` and full `scripts/regression-test.ps1` on Windows (no verbatim stdout supplied).

@@ -192,9 +192,16 @@ internal static class NativeLauncherRegression
             }
             if (pid <= 0 || queries != 1)
                 throw new Exception($"Fault hooks not reached as expected: pid={pid}, queries={queries}.");
-            using var child = System.Diagnostics.Process.GetProcessById(pid);
-            if (!child.HasExited)
-                throw new Exception($"Direct child survived the accounting-query fault: pid={pid}.");
+            try
+            {
+                using var child = System.Diagnostics.Process.GetProcessById(pid);
+                if (!child.HasExited)
+                    throw new Exception($"Direct child survived the accounting-query fault: pid={pid}.");
+            }
+            catch (ArgumentException)
+            {
+                // The exited process may already have been removed from the process table.
+            }
             Console.WriteLine("M3.3 Job accounting query fault aggregation and direct-child cleanup passed");
         }
         finally

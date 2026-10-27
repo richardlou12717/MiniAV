@@ -16,6 +16,7 @@ internal sealed class ClamJob : IDisposable
     private const uint JobObjectLimitProcessMemory = 0x00000100;
     private const uint JobObjectLimitJobMemory = 0x00000200;
     private const int JobObjectExtendedLimitInformation = 9;
+    private const int JobObjectBasicAccountingInformation = 1;
     private IntPtr handle;
 
     private ClamJob(IntPtr job) => handle = job;
@@ -91,6 +92,22 @@ internal sealed class ClamJob : IDisposable
                 "Explicit Job member termination failed.");
     }
 
+    // Diagnostic snapshot while the Job handle is still valid and owned.
+    // Zero active members is an observed state, not a guarantee that a
+    // previously failed CloseHandle can safely be retried.
+    internal uint GetActiveProcessCount()
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var h = Volatile.Read(ref handle);
+        if (h == IntPtr.Zero) throw new ObjectDisposedException(nameof(ClamJob));
+        if (!QueryInformationJobObject(h, JobObjectBasicAccountingInformation,
+                out var info, (uint)Marshal.SizeOf<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>(),
+                out _))
+            throw new Win32Exception(Marshal.GetLastWin32Error(),
+                "Cannot confirm active Job process count.");
+        return info.ActiveProcesses;
+    }
+
     public void Dispose()
     {
         var h = Interlocked.Exchange(ref handle, IntPtr.Zero);
@@ -100,6 +117,13 @@ internal sealed class ClamJob : IDisposable
         if (!CloseHandle(h))
             throw new Win32Exception(Marshal.GetLastWin32Error(),
                 "Closing the ClamAV Job Object handle failed; descendant termination is not confirmed.");
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct JOBOBJECT_BASIC_ACCOUNTING_INFORMATION
+    {
+        public long TotalUserTime, TotalKernelTime, ThisPeriodTotalUserTime, ThisPeriodTotalKernelTime;
+        public uint TotalPageFaultCount, TotalProcesses, ActiveProcesses, TotalTerminatedProcesses;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -145,6 +169,12 @@ internal sealed class ClamJob : IDisposable
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool QueryInformationJobObject(IntPtr job, int infoClass,
+        out JOBOBJECT_BASIC_ACCOUNTING_INFORMATION information, uint informationLength,
+        out uint returnLength);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

@@ -29,7 +29,8 @@ internal static class WindowsSuspendedLauncher
         Func<Task>? holdStdoutCompletionTestHook = null,
         TimeSpan? readerJoinTimeoutTestOverride = null,
         Action<DeferredReaderCleanup>? deferredOwnerTestHook = null,
-        Action? afterJobCloseTestHook = null)
+        Action? afterJobCloseTestHook = null,
+        Action<int>? afterResumeTestHook = null)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable))
@@ -102,6 +103,9 @@ internal static class WindowsSuspendedLauncher
             token.ThrowIfCancellationRequested();
             if (ResumeThread(native.ThreadHandle) != 1)
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "ResumeThread failed.");
+            // Opt-in fixture fault after the native thread has resumed, but before
+            // the output-reader ownership scope is entered.
+            afterResumeTestHook?.Invoke(checked((int)native.ProcessId));
             stdin.Child.Dispose();
             if (useOverlappedOutputPipes)
             {

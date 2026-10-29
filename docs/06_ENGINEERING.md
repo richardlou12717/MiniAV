@@ -1,11 +1,12 @@
-# 工程规范
+# MiniAV — Engineering Guidelines
 
-- main 保持可构建；功能变更使用独立分支与 PR。
-- 默认只读，不执行被扫描文件，不自动删除与隔离。
-- Nullable 开启，编译警告作为错误。
-- 明确区分 Matched / NoMatch / Skipped / Error / EngineUnavailable。
-- 防止日志泄露个人路径；绝不提交密钥、敏感样本。
-- 演示签名仅用于测试；不得宣称真实防护覆盖。
-- 外部进程参数通过安全参数列表传递，避免 shell 拼接。
-- 测试覆盖：目录遍历、受限权限、符号链接、变更竞态、Unicode、取消。
-- 每次开发记录：变更、测试环境及结果、已知限制和下一步。
+- Keep `main` buildable. Develop functional changes on dedicated branches and review them via pull requests.
+- Scan read-only by default. Do not execute scanned files or automatically delete, move, or quarantine them.
+- Enable nullable reference checks and treat compiler warnings as errors where configured.
+- Preserve distinctions between Matched, NoMatch, Skipped, Error, and EngineUnavailable.
+- Avoid leaking personal file paths into shared logs; never commit secrets or unsafe malware samples.
+- Demonstration signatures are for testing and must never be described as real malware coverage.
+- Pass external process arguments through safe argument lists rather than command-shell concatenation.
+- Test traversal, access restrictions, reparse points, file-change races, Unicode, cancellation, and error cleanup.
+- Record changes, environment, test evidence, remaining limitations, and next steps.
+- Do not replace the production ClamAV runner or merge Draft PR #3 without explicit authorization and release-gate review.

@@ -1,18 +1,20 @@
-# MiniAV 路线图
+# MiniAV — Roadmap
 
-| 里程碑 | 交付物 | 状态 |
+| Milestone | Scope | Status |
 |---|---|---|
-| M0 | 项目结构、文档、只读 CLI 原型 | 完成 |
-| M1 | Core/Hash 模块化、CLI、错误/取消、Windows 回归和 CI | 完成，PR #1 已合并 |
-| M2 | WPF GUI、日志、取消、资源预算、批量刷新、有界日志和回归 | 完成，PR #2 已合并 |
-| M2.1 | 用户明确授权后的安全隔离及可逆恢复 | 待设计（须单独审查） |
-| M3 | 可选独立进程 ClamAV 适配器、签名更新方案 | 下一阶段，尚未启动 |
-| M4 | 并发、增量缓存、进一步性能优化 | 待开发 |
+| M0 | Project skeleton, documentation, read-only CLI prototype | Completed |
+| M1 | Modular Core / Hash engine, CLI, cancellation/error handling, Windows regressions and CI | Completed; PR #1 merged |
+| M2 | WPF GUI, reporting, cancellation, resource limits, bounded UI logs, regressions | Completed; PR #2 merged |
+| M2.1 | Explicitly authorized quarantine and reversible restoration | Not implemented; separate safety design required |
+| M3 | Optional out-of-process ClamAV adapter and related safety analysis | In progress on feature branch; Draft PR #3 unmerged |
+| M4 | Concurrency, incremental caching, further performance improvements | Future |
 
-## M3 启动顺序
-1. 从最新 main 新建独立功能分支，先审阅架构、安全边界与相关许可。
-2. 明确外部引擎安装/发现、签名库来源与更新策略、无 shell 拼接的进程调用、超时/取消、返回码/故障映射。
-3. 在无真实恶意样本的条件下，先用可控假进程做单元与回归测试。
-4. 按需接入 CLI/WPF，经过 Windows 本地及 GitHub CI 验证后再申请合并。
+## M3 integration gates
 
-**安全声明**：现阶段仅演示 SHA-256 特征库，不具备真实恶意软件覆盖；NO_MATCH 不代表安全，不替代 Defender。不自动隔离、删除、移动或执行文件。
+The feature branch explores real and simulated external-process tests, safe process arguments, bounded output, cancellation, timeout behavior, and Windows native process cleanup. This experimental work is **not merged into stable `main`**.
+
+Before any production runner replacement or merge, unresolved native failure and resource-lifetime risks must be addressed, followed by explicit review and Windows CLI/WPF integration acceptance. See the [feature-branch project status](https://github.com/richardlou12717/MiniAV/blob/feature/m3-clamav-adapter/PROJECT_STATUS.md).
+
+## Security disclaimer
+
+Only harmless demonstration signatures are supported in the stable scanner. `NO_MATCH` is not proof of safety. Do not substitute MiniAV for Microsoft Defender. No automatic quarantine, deletion, movement, or execution of scanned files.

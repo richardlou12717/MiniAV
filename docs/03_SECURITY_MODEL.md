@@ -1,18 +1,24 @@
-# 安全边界与威胁模型
+# MiniAV — Security Boundaries and Threat Model
 
-资产：用户文件、系统稳定性、文件路径隐私、隔离区完整性和检测准确性。
+## Protected assets
 
-不可信输入：文件内容及属性、重解析点、签名库、外部引擎响应。
+User files, system stability, file-path privacy, scan-result integrity, and any future remediation state.
 
-主要风险：
-1. 误报/误删：初期只读；隔离需用户确认、恢复及审计。
-2. 路径循环/越界：不跟随重解析点，防范 symlink/junction。
-3. TOCTOU：扫描与处置之间文件可能变化，处置前需重新校验。
-4. 解析漏洞：早期只流式哈希，不执行样本或解包。
-5. 签名污染：正式库需来源、真实性验证、版本及回滚。
-6. 隐私：默认不传输内容与文件路径。
-7. 扫描失败：Error/Skipped 不等于 NoMatch。
-8. 引擎失效：明确标记 EngineUnavailable。
-9. 与 Defender 共存：不关闭系统保护。
+## Untrusted inputs
 
-正式杀毒能力、隔离、自动更新和安装包签名均为上线前阻断项。
+File contents and metadata, reparse points, local demonstration signatures, and any responses from optional external scanners.
+
+## Risks and controls
+
+1. **False positives and destructive actions:** read-only scanning in the current implementation; no automatic delete, move, or quarantine.
+2. **Traversal loops and path escapes:** skip Windows reparse points and junctions during traversal.
+3. **Time-of-check/time-of-use:** a file may change after scanning; any future remediation must revalidate its identity and contents.
+4. **Parser exposure:** the stable engine hashes byte streams; it does not execute scanned files or unpack arbitrary formats.
+5. **Signature provenance:** production signature distribution would require authenticity checks, version tracking, and rollback; not implemented.
+6. **Privacy:** no default upload of file contents or paths.
+7. **Incomplete scans:** Error and Skipped are distinct from NoMatch; cancellation and limits must be visible.
+8. **Engine failure:** unavailable engines must be reported explicitly, not treated as clean results.
+9. **Endpoint protection coexistence:** never disable Microsoft Defender.
+10. **Native process isolation:** experimental ClamAV integration remains under review for cleanup, descendant lifetime, and potentially blocked I/O; tests do not establish general sandbox or malware-analysis safety.
+
+**Release boundary:** production malware-detection coverage, safe remediation, trusted signature updates, signing, and broader security verification are not established. MiniAV must not be presented as production antivirus software.

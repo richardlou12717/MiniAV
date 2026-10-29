@@ -1,12 +1,16 @@
-# MiniAV 项目章程
+# MiniAV — Project Charter
 
-- 启动：2026-10-17
-- 项目所有者：用户；ChatGPT 在交互会话中担任架构师及开发者
-- 目标：Windows 个人电脑本地按需文件扫描与安全隔离
-- 技术路线：C#/.NET 10；自研只读扫描框架、可选外部引擎，CLI 优先
+- **Started:** October 17, 2026
+- **Ownership:** Personal development project; design and implementation are developed collaboratively with AI assistance, with local Windows verification by the project owner.
+- **Goal:** Explore safe, local, on-demand file scanning on Windows.
+- **Technology:** C# / .NET 10; a read-only modular scanning framework, local hash engine, and an optional external scanner adapter. CLI first, followed by WPF.
 
-## 设计原则
-最小权限、默认只读、检测与处置分离、审计可追踪、隐私优先、失败如实报告。
+## Design principles
 
-## MVP 不包含
-内核驱动、实时防护、云端上传、自动删除、病毒修复、替代 Defender。
+Least privilege; read-only by default; separate detection from remediation; explicit failure reporting; traceability; privacy by default; and testable resource and lifecycle limits.
+
+## Outside the current supported scope
+
+Kernel drivers, real-time protection, cloud submission, automatic file deletion, malware repair, and replacing Microsoft Defender.
+
+Quarantine and restoration were considered as possible future features but are **not implemented on stable `main`**.

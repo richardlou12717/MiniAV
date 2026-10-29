@@ -1,18 +1,22 @@
-# 需求规格 v0.1
+# MiniAV — Requirements (Initial Scope v0.1)
 
-| ID | 需求 | 阶段 |
+This document records early requirements and proposals. **It is not a claim that every row is implemented.** See [README](../README.md) and [project status](../PROJECT_STATUS.md) for delivered features.
+
+| ID | Requirement | Original target |
 |---|---|---|
-| FR-01 | 指定单文件或目录扫描 | M1 |
-| FR-02 | 流式 SHA-256 哈希匹配本地签名 | M1 |
-| FR-03 | 区分 Matched、NoMatch、Skipped、Error | M1 |
-| FR-04 | 跳过符号链接、junction 与重解析点 | M1 |
-| FR-05 | 可取消的扫描、结构化日志与 JSON 输出 | M2 |
-| FR-06 | Windows 桌面 GUI | M2 |
-| FR-07 | 用户明确确认后的可逆隔离与审计 | M2 |
-| FR-08 | 可选 ClamAV 适配器 | M3 |
-| FR-09 | 签名更新真实性校验、版本与回滚 | M3 |
-| FR-10 | 增量扫描和性能优化 | M3 |
+| FR-01 | Scan a selected file or directory | M1 |
+| FR-02 | Match streaming SHA-256 hashes against a local demonstration database | M1 |
+| FR-03 | Distinguish Matched, NoMatch, Skipped, and Error | M1 |
+| FR-04 | Skip symlinks, junctions, and other reparse points | M1 |
+| FR-05 | Cancellable scans and structured reporting | M2 |
+| FR-06 | Windows desktop GUI | M2 |
+| FR-07 | Reversible quarantine with explicit user authorization and audit | Proposed; not implemented |
+| FR-08 | Optional ClamAV process adapter | M3; experimental Draft PR |
+| FR-09 | Authenticity checks, versions, and rollback for signature updates | Proposed; not implemented |
+| FR-10 | Incremental scanning and further performance improvements | Future |
 
-未匹配不代表安全。权限错误和不可访问路径不能记为阴性。
-隔离需要复验哈希、防止路径穿越、禁止默默覆盖目标文件。
-验收需在 Windows 上构建、运行无害样本，并验证退出码和异常路径。
+A file that does not match a demonstration signature must **not** be reported as safe. Permission failures and inaccessible paths cannot be silently counted as negative results.
+
+Any future quarantine mechanism would require explicit consent, hash revalidation, path-safety checks, and recovery support.
+
+Acceptance requires Windows builds, harmless sample testing, exit-code checks, and relevant failure-path regression tests.

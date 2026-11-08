@@ -4,6 +4,13 @@
 **Active milestone:** M3 — optional ClamAV out-of-process adapter; production native-launch hardening in progress.  
 **State:** M0/M1/M2 merged into stable `main`. M3 remains **unmerged** on `feature/m3-clamav-adapter`, [Draft PR #3](https://github.com/richardlou12717/MiniAV/pull/3) (confirmed open, draft, unmerged on 2026-10-19). **Do not merge without explicit user authorization.**
 
+## Future roadmap: M4 user-defined signatures (proposal only; 2026-11-07)
+- User approved documenting **M4 — Custom Signature Engine** as a future MiniAV differentiator, not immediate implementation.
+- Proposed progression: user-entered/imported **SHA-256** rules; **hex/binary byte patterns** with optional offsets/wildcards; optional **YARA** integration after safety/licensing review; optional guided signature creation from selected sample bytes.
+- Modular signature storage and enable/disable/edit UI, explicit **Custom Signature Match** classification (not automatically malware), **report-only default**, bounded resource use, cancellation and robust validation. Continue M3 first.
+- Details: [`docs/M4_CUSTOM_SIGNATURE_ENGINE_PROPOSAL.md`](docs/M4_CUSTOM_SIGNATURE_ENGINE_PROPOSAL.md).
+- M3 status above remains authoritative; **no M4 code developed**, PR #3 remains Draft, main unchanged.
+
 ## M3.3 Job accounting query-failure Windows PASS — 2026-10-26
 - User reported **PASS for all four checks** after commit `76eb3264a1cf5af969a87468d2ffa21fa96fdd0c`: `--native-job-accounting-failure-test`, `--native-post-resume-failure-test`, `--native-retained-writer-timeout-test`, and full `scripts/regression-test.ps1`. No detailed console stdout supplied.
 - GitHub Actions Windows CI for that commit independently returned **completed/success**.

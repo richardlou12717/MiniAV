@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="../MiniAV.Core/MiniAV.Core.csproj" />
     <ProjectReference Include="../MiniAV.Engines.Hash/MiniAV.Engines.Hash.csproj" />
+    <ProjectReference Include="../MiniAV.Engines.ClamAV/MiniAV.Engines.ClamAV.csproj" />
   </ItemGroup>
 </Project>

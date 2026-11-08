@@ -7,6 +7,13 @@ try {
     dotnet run --project .\tests\MiniAV.Core.Regression\MiniAV.Core.Regression.csproj --configuration Release
     if ($LASTEXITCODE -ne 0) { throw 'Core cancellation regression tests failed' }
 
+    dotnet run --project .\tests\MiniAV.ClamAV.Regression\MiniAV.ClamAV.Regression.csproj --configuration Release
+    if ($LASTEXITCODE -ne 0) { throw 'ClamAV adapter regression tests failed' }
+
+    # Validate local real-engine smoke script syntax with built-in Windows PowerShell 5.1.
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Join-Path (Get-Location) "scripts/clamav-local-smoke.ps1"), [ref]$tokens, [ref]$errors) | Out-Null; if ($errors.Count) { $errors | Out-String | Write-Host; exit 1 }'
+    if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell 5.1 smoke-script syntax test failed' }
+
     $temp = Join-Path ([System.IO.Path]::GetTempPath()) ('miniav-test-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $temp | Out-Null
     try {
@@ -63,6 +70,19 @@ try {
         Invoke-Scan -Target $inside -Database $db -ExpectedExitCode 0 -ExpectedText 'SUMMARY Matched=0 NoMatch=0 Skipped=1 Errors=0' -ForbiddenText '(?m)^(?:MATCHED|NO_MATCH|ERROR)\s'
         Invoke-Scan -Target $junction -Database $db -ExpectedExitCode 0 -ExpectedText 'SKIPPED \(directory reparse point\)' -ForbiddenText '(?m)^(?:MATCHED|NO_MATCH|ERROR)\s'
 
+        # ClamAV requires explicit opt-in; a missing binary is unavailable, never NO_MATCH.
+        $missingClam = Join-Path $temp 'missing-clamav\clamscan.exe'
+        $clamOut = Join-Path $temp 'clam-stdout.txt'
+        $clamErr = Join-Path $temp 'clam-stderr.txt'
+        $clamArgs = @('run', '--no-build', '--configuration', 'Release',
+            '--project', '.\src\MiniAV.Cli', '--',
+            '--path', ('"' + $ordinary + '"'),
+            '--engine', 'clamav', '--clamav-exe', ('"' + $missingClam + '"'))
+        $clamProcess = Start-Process -FilePath 'dotnet' -ArgumentList $clamArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput $clamOut -RedirectStandardError $clamErr
+        $clamText = (Get-Content $clamOut -Raw -ErrorAction SilentlyContinue) + (Get-Content $clamErr -Raw -ErrorAction SilentlyContinue)
+        if ($clamProcess.ExitCode -ne 3 -or $clamText -notmatch 'ClamAV executable not found' -or $clamText -match '(?m)^NO_MATCH ') {
+            throw "Missing ClamAV was not fail-closed: exit $($clamProcess.ExitCode), $clamText"
+        }
         Write-Host 'Regression tests passed'
     }
     finally { Remove-Item $temp -Recurse -Force }
